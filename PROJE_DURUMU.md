@@ -218,7 +218,7 @@ Başlık: "☀️ Sabah Brifingi — GG.AA.YYYY HH:MM TSİ"
 10. Veri ne diyor (backtest kanıtı): SADECE evidence ve evidence_hits alanlarını kullan; kendi yorumunla kanıt üretme.
    - evidence yoksa veya evidence.status "ok" değilse: "Backtest verisi yok; bugün kanıta dayalı yorum yapılamaz." yaz.
    - Hiçbir coinde evidence_hits yoksa: "Bugün geçmiş veride anlamlı üstünlük gösteren bir durum yok." yaz ve ardından tek cümle: "Filtresiz her gün long açılsaydı son <evidence.period.days> günde işlem başı ortalama <evidence.base.long.avg_pnl_usdt> USDT, liq oranı %<evidence.base.long.liq_rate>."
-   - evidence_hits varsa: pnl_lift mutlak değeri en büyük en fazla 3 tanesini yaz. Biçim: "<coin>: <desc_tr> → geçmişte bu durumda <long/short> işlem başı ortalama <avg_pnl_true> USDT, diğer günlerde <avg_pnl_false> USDT (liq %<liq_rate_true>, n=<n_true>)." effect "olumsuz" ise cümleyi "→ <long/short> için daha zayıf" diye bitir. USDT değerlerini + veya - işaretiyle ve Türkçe ondalıkla yaz (örn: +2,75 USDT).
+   - evidence_hits varsa: pnl_lift mutlak değeri en büyük en fazla 3 tanesini yaz. Biçim: "<coin>: <desc_tr> → geçmişte bu durumda <long/short> işlem başı ortalama <avg_pnl_true> USDT, diğer günlerde <avg_pnl_false> USDT (liq %<liq_rate_true>, n=<n_true>)." effect "olumsuz" ise cümleyi "→ <long/short> için daha zayıf" diye bitir. USDT değerlerini + veya - işaretiyle ve Türkçe ondalıkla yaz (örn: +2,75 USDT). Aynı coinde birden fazla hit varsa sadece pnl_lift'i en büyük olanı yaz. Maddenin sonuna bir kez "(son <evidence.period.days> gün, 11 coin birlikte; geleceği garanti etmez)" ekle.
    - Bu madde de işlem önerisi değildir: "gir", "al", "sat", "long aç", "short aç" yazma. Rakamları değiştirme veya yuvarlama dışında yorumlama.
 11. ⚠️ Bugün dikkat: kurallar ve hata müzesine göre tek ana uyarı, en az bir somut sayıyla (4., 7., 8. veya 10. maddeden ya da makro saatinden). Kalabalık long + yükselen OI varsa bunu "herkes alıyor"/FOMO hatasıyla ilişkilendirebilirsin. Sert OI düşüşü olan coinlerde "dipten döner" diyip zarardaki pozisyona ekleme riskini hatırlat. Her gün aynı cümleyi kurma. Sade dille, en fazla 3 satır.
 Numarasız satır: "Bugün hangi coinleri izliyorsun?"
@@ -278,16 +278,26 @@ HTTP 200 ve "ok":true değilse hatayı raporla. Başarılıysa tek cümleyle "g�
 - ✅ Faz 1 kodu yazıldı, 18 test geçiyor (sentetik veri). Gerçek Binance verisiyle henüz çalıştırılmadı (bulut ortamı Binance'e erişemiyor).
 - ✅ VPS branch geçişi, sunucuda 18 test OK, yeni `latest.json` yayında: 11 coinde tüm yeni alanlar dolu, `conditions_unknown` boş, funding aralığı hepsinde 8 saat
 - ✅ OI zaman damgası doğrulandı: saat başındaki anlık değer, ~25 dk sonra yayınlanıyor (backtest varsayımıyla aynı)
-- ⏳ Geçmiş veri indirme, ilk backtest, haftalık cron
-- ⏳ Yeni prompt'un routine'e yapıştırılması (kurulum doğrulandıktan sonra)
+- ✅ Geçmiş veri indirildi: 11 coin, 15.240 saatlik mum, 1.191 funding, 9.528 saatlik metrics satırı; eksik gün yok
+- ✅ İlk backtest (2025-09-28 → 2026-09-24, 362 gün) yayında: `market-data/backtest_report.txt`
+- ⏳ Haftalık backtest cron'u (ilk denemede satır terminale yazıldı, crontab'a eklenmedi)
+
+### İlk backtest bulguları (28.09.2026)
+
+- **Filtresiz kurgu bu dönemde kazandırmadı.** Long: TP %68,0, liq %2,6, işlem başı -1,48 USDT (başa baş için %76,9 TP gerekirdi); 11 coinin hepsinde long ortalaması negatif. Short: TP %74,8, liq %1,9, işlem başı +0,18 USDT (≈ başa baş).
+- **Doğrulanan 2 koşul (PnL ölçütü), ikisi de short ve büyük ölçüde aynı olay:** 24s ≤ -%5 düşüş sonrası short +2,75 vs +0,01 USDT (liq %0,4, n=258); long tasfiyesi (fiyat ≤ -%3 ve OI ≤ -%5) sonrası short +2,32 vs +0,01 USDT (liq %0, n=296). Güven aralığının alt ucu sıfıra yakın (+0,3); tek yıllık rejime bağlı olabilir.
+- Aynı durumlarda long daha kötü (düşüş sonrası long liq %5,8 vs %2,4; anlamlı değil ama yön tutarlı) → hata müzesindeki "dipten döner" ile örtüşüyor.
+- **8. madde filtresi:** hiçbir eşik değişikliği veriyle doğrulanmadı, filtre olduğu gibi kaldı. 🟢 long'da liq'i düşürüyor (%1,5 vs %3,2; PnL -0,78 vs -1,87; iki yarıda tutarlı ama anlamlı değil). %70 long kuralı yönsel olarak destekleniyor (long PnL -1,23 fark, aralık [-3,39, +0,69], iki yarıda tutarlı). Yüzdelik alternatifi (long_pctl_high) hiçbir fark göstermedi → mutlak %70 korunuyor.
+- İlk ölçüt (temiz kazanç oranı) oynaklığı yön sinyali gibi gösterdi; doğrulama PnL'e çevrildi.
+- ⏳ Yeni prompt'un routine'e yapıştırılması (metin sohbette verildi)
 
 ---
 
 ## 9. Sıradaki adımlar / açık konular
 
 1. **Faz 1 kurulumu (VPS):** sohbetteki adım adım talimatlar. Her adımın çıktısı Claude'a yapıştırılır.
-2. **İlk backtest raporunu birlikte oku:** `https://raw.githubusercontent.com/doruq-IT/kripto-brifing/market-data/backtest_report.txt` (Claude buradan okuyabilir). Hangi koşullar doğrulandı, filtresiz TP/liq oranları ne, mevcut 🟢/🔴 filtresinin değeri var mı.
-3. Rapora göre 8. madde filtresini (özellikle %70 long eşiğini) veriye dayanarak güncelle.
+2. **Haftalık raporu takip et:** `https://raw.githubusercontent.com/doruq-IT/kripto-brifing/market-data/backtest_report.txt` (Claude buradan okuyabilir). Doğrulanan koşullar haftadan haftaya kalıcı mı?
+3. 8. madde filtresi: ilk rapor değişikliği desteklemedi; her hafta raporla birlikte yeniden bak (🟢 long ve %70 kuralı anlamlılığa yakın).
 4. Bilinen küçük pürüzler:
    - Dallas Fed gibi küçük makro verilerde saat tutarsız / eksik olabiliyor.
    - Crypto.com ve Binance 24s değişimleri farklı borsalar olduğu için küçük farklar gösterebiliyor (normal).
