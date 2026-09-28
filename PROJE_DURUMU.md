@@ -3,7 +3,7 @@
 > Son güncelleme: 28.09.2026, 17:30 TSİ civarı
 > Bu dosya, projeye yeni bir Claude oturumunda kaldığı yerden devam etmek için hazırlandı. Yeni oturumda bu dosyayı ver ve "buradan devam edelim" de.
 
-> ⚠️ Bu repo **herkese açık** (GitHub'dan şifresiz clone edilebiliyor). Bu dosyaya ve repoya IP adresi, SSH portu, token, chat ID veya API anahtarı **yazılmamalı**.
+> ⚠️ Bu repo **herkese açık** (GitHub'dan şifresiz clone edilebiliyor). Bu dosyaya ve repoya IP adresi, SSH portu, token, chat ID, API anahtarı, sunucudaki diğer servislerin ayrıntıları veya güvenlik açıkları **yazılmamalı**.
 
 ---
 
@@ -36,7 +36,8 @@ Okan'ın her sabah Telegram'a gelen **"Kripton Karar Sabah Brifingi"** mesajına
 ## 3. GitHub reposu
 
 - Repo: `doruq-IT/kripto-brifing`
-- Kod branch'i: `claude/binance-api-connection-test-4omj2z` (tüm geliştirme burada; main'e henüz merge edilmedi, PR açılmadı)
+- Kod branch'i: `claude/elegant-cori-lln6rd` (güncel geliştirme burada; `claude/binance-api-connection-test-4omj2z` üzerine devam ediyor. main'e henüz merge edilmedi, PR açılmadı)
+- VPS'teki clone hâlâ eski branch'te (`claude/binance-api-connection-test-4omj2z`). `collector/` altında değişiklik olursa sunucuda önce `git fetch && git checkout claude/elegant-cori-lln6rd` gerekir.
 - Veri branch'i: `market-data` (sadece `latest.json`, VPS otomatik yazar; elle dokunulmaz)
 
 ```
@@ -77,7 +78,7 @@ Ortam değişkenleri: `SYMBOLS` (virgülle), `PERIOD` (varsayılan `4h`), `DATA_
 
 Sunucu: **okan-vps** (Ubuntu 22.04, root). IP/SSH bilgileri Okan'da; bu public repoya yazılmadı.
 
-Aynı sunucuda Okan'ın **canlı trading botu** da çalışıyor (`/opt/okan-master-bot/`, Docker container `okan-bot-container`, PostgreSQL `okanbot_db`). **Bu projeye hiç dokunulmadı**; brifing toplayıcısı ondan tamamen bağımsız, host üzerinde cron ile çalışır ve bot'un `.env`'ini kullanmaz.
+Aynı sunucuda Okan'ın başka servisleri de çalışıyor (ayrıntılar Okan'da). **Onlara hiç dokunulmadı**; brifing toplayıcısı onlardan tamamen bağımsız, host üzerinde cron ile çalışır ve başka bir servisin ayarını/`.env`'ini kullanmaz.
 
 ### Klasör ve dosyalar
 
@@ -92,11 +93,10 @@ Aynı sunucuda Okan'ın **canlı trading botu** da çalışıyor (`/opt/okan-mas
 
 ### Cron (root crontab, `crontab -l`)
 
+Crontab'da başka servislere ait satırlar da var; onlara dokunulmaz. Bu projeye ait tek satır:
+
 ```
-0 9 * * * /usr/bin/python3 /opt/okan-master-bot/reporter.py          # (bot'a ait, dokunulmadı)
-* * * * * /usr/bin/chronyc -a makestep >/dev/null 2>&1               # (mevcut, dokunulmadı)
-0 3 * * * /root/db_backups/backup.sh                                 # (mevcut, dokunulmadı)
-30 * * * * /bin/bash /opt/kripto-brifing/collector/publish.sh >> /var/log/kripto-brifing.log 2>&1   # ← bu proje
+30 * * * * /bin/bash /opt/kripto-brifing/collector/publish.sh >> /var/log/kripto-brifing.log 2>&1
 ```
 
 ### Sık kullanılan komutlar
@@ -256,13 +256,13 @@ HTTP 200 ve "ok":true değilse hatayı raporla. Başarılıysa tek cümleyle "g�
    - TRX'i listeye eklemek.
    - `snapshots.jsonl` geçmişinden haftalık özet (OI/funding trendi).
    - Kod branch'ini main'e merge etmek (PR açılmadı).
-5. Sunucu güvenliği (bu projenin kapsamı dışında ama Okan'a hatırlatıldı): SSH şifreyle sınırsız deneme açık + fail2ban kapalı; n8n paneli auth'suz açık port. Aynı makinede canlı Binance API anahtarları var.
+5. Sunucu güvenliği: bu projenin kapsamı dışında; Okan'a ayrıca hatırlatıldı. Ayrıntılar public repoya yazılmaz.
 
 ---
 
 ## 10. Yeni oturumda nasıl devam edilir
 
-Yeni Claude oturumunda (repo `doruq-IT/kripto-brifing`, branch `claude/binance-api-connection-test-4omj2z`) şunu yaz:
+Yeni Claude oturumunda (repo `doruq-IT/kripto-brifing`, branch `claude/elegant-cori-lln6rd`) şunu yaz:
 
 > `PROJE_DURUMU.md` dosyasını oku. Kripto brifing projesine kaldığımız yerden devam edeceğiz. [yapmak istediğin şey]
 
