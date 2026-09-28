@@ -18,11 +18,12 @@ VERİ
 - Korku-açgözlülük endeksi: SADECE şu komutla al: curl -s "https://api.alternative.me/fng/?limit=2" → bugünkü değer, sınıfı ve dünkü değer. Başka site kullanma.
 - Haberler ve makro takvim: web araması. Tek kaynağa dayanan haberi, iddiayı veya rakamı her seferinde "doğrulanmadı" diye işaretle. Rakam uydurma; bulamadığını "alınamadı" yaz.
 
-FORMAT (düz metin, en fazla 9 madde, her madde en fazla 2 satır, toplam 3500 karakteri geçme)
+FORMAT (düz metin, en fazla 11 madde, her madde en fazla 2 satır (8. madde en fazla 3 satır), toplam 3800 karakteri geçme)
 - Hiç link, URL, köşeli parantez veya Markdown kullanma. Kaynakları sadece adıyla yaz.
-- Yüzdeleri Türkçe biçimde yaz: -%2,19 / +%0,24.
+- Yüzdeleri Türkçe biçimde yaz: -%2,19 / +%0,24. Pozitif değerlerde + işaretini yaz.
 - Maddeleri "1.", "2." biçiminde numarala.
 - Türev verisinden yapılan tüm çıkarımları "olası", "işaret olabilir" gibi temkinli dille yaz; kesin hüküm kurma.
+- 8. ve 9. maddeler işlem önerisi değildir: "al", "sat", "gir", "long aç", "short aç" gibi ifadeler, giriş seviyesi veya hedef fiyat yazma. 🟢 işareti "işlem aç" anlamına gelmez, sadece bugünkü verinin Okan'ın kurallarıyla çelişmediğini gösterir.
 Başlık: "☀️ Sabah Brifingi — GG.AA.YYYY HH:MM TSİ"
 1. BTC ve ETH: fiyat, 24s değişim, gün aralığındaki konum ((fiyat-low)/(high-low)): %0-25 "dibe yakın", %25-75 "orta bant", %75-100 "tepeye yakın"
 2. En çok düşen ve yükselen 3'er büyük coin (tek satır)
@@ -31,13 +32,20 @@ Başlık: "☀️ Sabah Brifingi — GG.AA.YYYY HH:MM TSİ"
 5. En fazla 2 önemli haber. Tek kaynaklı iddia ve rakamları "doğrulanmadı" diye işaretle
 6. Makro takvim: bugün ve yarın, gün adı ve TSİ saatiyle
 7. Liq radarı: 24s aralığı ((high-low)/low) en geniş 3 coin ve bu aralığın 5x liq mesafesine (~%20) oranı. Örn: "BCH %9,1 → liq mesafesinin %46'sı"
-8. ⚠️ Bugün dikkat etmen gereken tek şey: kurallar ve hata müzesine göre, en az bir somut sayıyla (4. veya 7. maddeden ya da makro saatinden). Kalabalık long + yükselen OI gibi bir türev sinyali varsa bunu Okan'ın "herkes alıyor"/FOMO hatasıyla ilişkilendirebilirsin. Her gün aynı cümleyi kurma. Türev çıkarımlarını temkinli dille yaz. En fazla 3 satır.
-9. Radar: "Bugün hangi coinleri izliyorsun?"
+8. Kurala uygunluk filtresi: listedeki 11 coini Binance verisine göre üç gruba ayır, her grupta coin adı ve belirleyici rakam(lar) kısaca:
+   🟢 Kurallarla çelişmiyor: 24s aralık ≤ %5 (liq mesafesinin ≤ %25'i) VE long hesap oranı < %70 VE |OI 24s değişimi| < %10
+   🔴 Bugün kurallara uymuyor: 24s aralık ≥ %10 (liq mesafesinin ≥ yarısı) VEYA |OI 24s değişimi| ≥ %15 VEYA 24s fiyat değişimi ≤ -%5
+   🟡 Temkinli: geri kalanlar (neden: kalabalık long, geniş aralık veya OI hareketi; en belirleyici olanı yaz)
+   Binance verisi alınamadıysa bu maddeye "Binance verisi olmadan filtre uygulanamadı" yaz.
+9. Koşullu senaryolar: en fazla 2 tane, BTC/ETH veya 4. maddede öne çıkan coin için 24s high/low seviyelerine dayalı "X seviyesinin altına/üstüne çıkarsa ... riski artabilir" biçiminde. Yön tahmini veya işlem önerisi yapma, sadece hangi seviyede riskin değişebileceğini yaz.
+10. ⚠️ Bugün dikkat etmen gereken tek şey: kurallar ve hata müzesine göre, en az bir somut sayıyla (4., 7. veya 8. maddeden ya da makro saatinden). Kalabalık long + yükselen OI gibi bir türev sinyali varsa bunu Okan'ın "herkes alıyor"/FOMO hatasıyla ilişkilendirebilirsin. Sert OI düşüşü olan coinlerde "zarardaki pozisyona ekleme" riskini hatırlat. Her gün aynı cümleyi kurma. Türev çıkarımlarını temkinli dille yaz. En fazla 3 satır.
+11. Radar: "Bugün hangi coinleri izliyorsun?"
 Son satır: kısa kaynak listesi (sadece adlar; Binance verisi kullanıldıysa "Binance Futures" ekle).
 
 GÖNDERİM
 Metni /tmp/brifing.txt dosyasına yaz. Göndermeden önce Markdown linklerini temizle:
 sed -i -E 's/\[([^]]+)\]\([^)]+\)/\1/g; s#https?://[^ )]+##g' /tmp/brifing.txt
+Karakter sayısını `wc -m /tmp/brifing.txt` ile kontrol et; 3800'ü geçiyorsa 5. ve 6. maddeleri kısaltıp tekrar yaz.
 Sonra gönder (token'ı asla yazdırma):
 curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" --data-urlencode "text@/tmp/brifing.txt" -d "disable_web_page_preview=true" -w "\nHTTP %{http_code}\n"
 HTTP 200 ve "ok":true değilse hatayı raporla. Başarılıysa tek cümleyle "gönderildi" yaz.
