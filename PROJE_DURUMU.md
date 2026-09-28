@@ -276,7 +276,9 @@ HTTP 200 ve "ok":true değilse hatayı raporla. Başarılıysa tek cümleyle "g�
 - ✅ GitHub'daki `latest.json` bulut ortamından okunabiliyor, 11 coin, `errors: {}`
 - ✅ Cron kurulu (`30 * * * *`)
 - ✅ Faz 1 kodu yazıldı, 18 test geçiyor (sentetik veri). Gerçek Binance verisiyle henüz çalıştırılmadı (bulut ortamı Binance'e erişemiyor).
-- ⏳ VPS'te Faz 1 kurulumu (branch geçişi, geçmiş veri indirme, ilk backtest, haftalık cron)
+- ✅ VPS branch geçişi, sunucuda 18 test OK, yeni `latest.json` yayında: 11 coinde tüm yeni alanlar dolu, `conditions_unknown` boş, funding aralığı hepsinde 8 saat
+- ✅ OI zaman damgası doğrulandı: saat başındaki anlık değer, ~25 dk sonra yayınlanıyor (backtest varsayımıyla aynı)
+- ⏳ Geçmiş veri indirme, ilk backtest, haftalık cron
 - ⏳ Yeni prompt'un routine'e yapıştırılması (kurulum doğrulandıktan sonra)
 
 ---
@@ -289,7 +291,6 @@ HTTP 200 ve "ok":true değilse hatayı raporla. Başarılıysa tek cümleyle "g�
 4. Bilinen küçük pürüzler:
    - Dallas Fed gibi küçük makro verilerde saat tutarsız / eksik olabiliyor.
    - Crypto.com ve Binance 24s değişimleri farklı borsalar olduğu için küçük farklar gösterebiliyor (normal).
-   - OI/long-short API zaman damgalarının anlamı (dönem başı mı sonu mu) doğrulanmadı; en fazla 1 saatlik (oranlarda 4 saatlik) kayma olabilir.
 5. Faz 2 (opsiyonel): Deribit DVOL/skew (BTC/ETH), spot ETF akışları, token unlock takvimi, makro (DXY/10Y). Sadece açıklayıcı; backtest kanıtı üretmez.
 6. Opsiyonel: TRX eklemek; kod branch'ini main'e merge etmek (PR açılmadı).
 7. Sunucu güvenliği: bu projenin kapsamı dışında; Okan'a ayrıca hatırlatıldı. Ayrıntılar public repoya yazılmaz.
