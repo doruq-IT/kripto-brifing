@@ -14,9 +14,13 @@ REMOTE="${REMOTE:-git@github.com:doruq-IT/kripto-brifing.git}"
 rm -rf "$PUB_DIR"
 mkdir -p "$PUB_DIR"
 cp "$REPO_DIR/collector/data/latest.json" "$PUB_DIR/latest.json"
+# Haftalık backtest çıktıları (varsa) da yayınlanır; gizli bilgi içermez
+for f in backtest_report.txt backtest_summary.json; do
+    if [ -f "$REPO_DIR/collector/data/$f" ]; then cp "$REPO_DIR/collector/data/$f" "$PUB_DIR/$f"; fi
+done
 cd "$PUB_DIR"
 git init -q -b market-data
-git add latest.json
+git add -A
 git -c user.name="kripto-brifing-bot" -c user.email="bot@okan-vps" \
     commit -qm "Market data $(date -u +%Y-%m-%dT%H:%MZ)"
 GIT_SSH_COMMAND="ssh -i $DEPLOY_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" \
