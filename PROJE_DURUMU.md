@@ -159,7 +159,7 @@ VERİ
 - Tarih/saat: `TZ=Europe/Istanbul date` komutuyla al. "Bugün/yarın" ifadelerini buna göre yaz.
 - Coin listesi (11 coin): BTC, ETH, BNB, SOL, XRP, ADA, AVAX, LINK, LTC, BCH, SUI.
 - Fiyatlar: Crypto.com bağlayıcısı (BNB hariç 10 coin; USDT pariteleri; son fiyat, 24s değişim, 24s high/low). BNB Crypto.com'da olmadığı için BNB'nin fiyat, 24s değişim ve high/low değerlerini Binance verisinden (price, change_24h_pct, high_24h, low_24h) al.
-- Binance futures türev verisi: SADECE şu komutla al: curl -s "https://raw.githubusercontent.com/doruq-IT/kripto-brifing/market-data/latest.json" → her coin için funding_rate_pct (8 saatlik funding, yüzde), oi_usdt, oi_change_4h_pct, oi_change_24h_pct, global_long_pct (long hesap yüzdesi), top_trader_position_ls_ratio, taker_buy_sell_ratio (1'in altı = satıcı baskın), range_24h_pct. Bu veri Okan'ın VPS'inden saatlik yayınlanıyor. generated_at alanı 3 saatten eskiyse, dosya alınamazsa veya coins boşsa türev maddesine "Binance verisi alınamadı" yaz ve bu verideki hiçbir rakamı kullanma. Fiyat için ana kaynak Crypto.com olarak kalsın; Crypto.com fiyatı alınamazsa bu dosyadaki price/high_24h/low_24h yedek olarak kullanılabilir.
+- Binance futures türev verisi: SADECE şu komutla al: curl -s "https://raw.githubusercontent.com/doruq-IT/kripto-brifing/market-data/latest.json" → her coin için funding_rate_pct (8 saatlik funding, yüzde), oi_usdt, oi_change_4h_pct, oi_change_24h_pct, global_long_pct (long hesap yüzdesi), top_trader_position_ls_ratio, taker_buy_sell_ratio (1'in altı = satıcı baskın), range_24h_pct. Bu veri Okan'ın VPS'inden saatlik yayınlanıyor. generated_at alanı 3 saatten eskiyse, dosya alınamazsa veya coins boşsa türev maddesine "Binance verisi alınamadı" yaz ve bu verideki hiçbir rakamı kullanma. Fiyat için ana kaynak Crypto.com olarak kalsın; Crypto.com fiyatı alınamazsa bu dosyadaki price/high_24h/low_24h yedek olarak kullanılabilir. Dosyada olmayan, errors alanında geçen veya ilgili alanı null olan coin için o rakamı "veri yok" yaz, tahmin etme; bu coini 8. maddede gruplama, maddenin sonuna "Veri yok: <coinler>" diye ekle.
 - Korku-açgözlülük endeksi: SADECE şu komutla al: curl -s "https://api.alternative.me/fng/?limit=2" → bugünkü değer, sınıfı ve dünkü değer. Başka site kullanma.
 - Haberler ve makro takvim: web araması. Tek kaynağa dayanan haberi, iddiayı veya rakamı her seferinde "doğrulanmadı" diye işaretle. Rakam uydurma; bulamadığını "alınamadı" yaz.
 
@@ -173,7 +173,7 @@ DİL (en önemli kural)
 
 FORMAT (düz metin, en fazla 11 madde, her madde en fazla 3 satır, toplam 3800 karakteri geçme)
 - Hiç link, URL, köşeli parantez veya Markdown kullanma. Kaynakları sadece adıyla yaz.
-- Yüzdeleri Türkçe biçimde yaz: -%2,19 / +%0,24. Pozitif değerlerde + işaretini yaz.
+- Yüzdeleri Türkçe biçimde yaz: -%2,19 / +%0,24. Pozitif değerlerde + işaretini yaz; bu kural funding ve OI değişimi dahil tüm yüzdeler için geçerli (örn: funding +%0,0061).
 - Maddeleri "1.", "2." biçiminde numarala ve her maddeye kısa bir başlık koy (örn: "4. Türev radarı:").
 - 8. ve 9. maddeler işlem önerisi değildir: "al", "sat", "gir", "long aç", "short aç" gibi ifadeler, giriş seviyesi veya hedef fiyat yazma. 🟢 işareti "işlem aç" anlamına gelmez, sadece bugünkü verinin Okan'ın kurallarıyla çelişmediğini gösterir.
 Başlık: "☀️ Sabah Brifingi — GG.AA.YYYY HH:MM TSİ"
@@ -249,7 +249,6 @@ HTTP 200 ve "ok":true değilse hatayı raporla. Başarılıysa tek cümleyle "g�
 1. **29.09 sabahı ilk otomatik brifingi kontrol et:** BNB fiyatı var mı (Binance'ten), 8. maddede 11 coin gruplanmış mı, kaynaklar satırı temiz mi.
 2. **Bir hafta prompt'a dokunmadan izle**, sonra toplu ayar yap (öneri buydu).
 3. Bilinen küçük pürüzler (şimdilik bilerek bırakıldı):
-   - Pozitif funding'lerde "+" işareti bazen yazılmıyor.
    - Dallas Fed gibi küçük makro verilerde saat tutarsız / eksik olabiliyor.
    - Crypto.com ve Binance 24s değişimleri farklı borsalar olduğu için küçük farklar gösterebiliyor (normal).
 4. Opsiyonel fikirler (Okan henüz onaylamadı):
