@@ -11,7 +11,7 @@ Brifing bulutta çalıştığı için Binance'e doğrudan erişemiyor (HTTP 451)
 
 ## collector/binance_collector.py
 
-Herkese açık Binance USDT-M Futures endpoint'lerini kullanır. API anahtarı gerektirmez, sadece Python standart kütüphanesiyle çalışır. Varsayılan semboller: BTC, ETH, SOL, XRP, ADA, AVAX, LINK, DOT, LTC, BCH, SUI (USDT).
+Herkese açık Binance USDT-M Futures endpoint'lerini kullanır. API anahtarı gerektirmez, sadece Python standart kütüphanesiyle çalışır. Varsayılan semboller: BTC, ETH, BNB, SOL, XRP, ADA, AVAX, LINK, LTC, BCH, SUI (USDT).
 
 | Alan | Endpoint |
 |---|---|

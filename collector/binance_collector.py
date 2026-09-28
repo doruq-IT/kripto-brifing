@@ -24,8 +24,8 @@ from pathlib import Path
 BASE_URL = "https://fapi.binance.com"
 # Sabah brifingindeki büyük/stabil coin listesiyle aynı
 DEFAULT_SYMBOLS = [
-    "BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT", "AVAXUSDT",
-    "LINKUSDT", "DOTUSDT", "LTCUSDT", "BCHUSDT", "SUIUSDT",
+    "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT",
+    "AVAXUSDT", "LINKUSDT", "LTCUSDT", "BCHUSDT", "SUIUSDT",
 ]
 RATIO_PERIOD = os.getenv("PERIOD", "4h")  # long/short ve taker oranları için
 DATA_DIR = Path(os.getenv("DATA_DIR", Path(__file__).resolve().parent / "data"))
