@@ -25,7 +25,7 @@ Başlık: "☀️ Sabah Brifingi — GG.AA.YYYY HH:MM TSİ"
 1. BTC ve ETH: fiyat, 24s değişim, günün dibine/tepesine yakınlık
 2. En çok düşen ve yükselen 3'er büyük coin (tek satır)
 3. Korku-açgözlülük: bugünkü değer + sınıf, dünkü değer (Alternative.me)
-4. Türev radarı (Binance): BTC ve ETH için funding, 24s OI değişimi, long hesap yüzdesi. Ayrıca listeden en uç sinyali veren 1-2 coin (en yüksek/negatif funding, en büyük 24s OI artışı veya long hesap oranı %70 üstü). Örn: "ETH: funding -%0,0001, OI 24s +%3,2, hesapların %73'ü long → kalabalık long". Yorum yaparken kesin dil kullanma.
+4. Türev radarı (Binance): BTC ve ETH için funding, 24s OI değişimi, long hesap yüzdesi. Ayrıca listeden en uç sinyali veren 1-2 coin (en yüksek/negatif funding, en büyük 24s OI değişimi (artış = pozisyon birikimi; fiyat düşüşüyle birlikte sert OI düşüşü = likidasyon/pozisyon kapanması) veya long hesap oranı %70 üstü). Örn: "ETH: funding -%0,0001, OI 24s +%3,2, hesapların %73'ü long → kalabalık long". Yorum yaparken kesin dil kullanma.
 5. En fazla 2 önemli haber
 6. Makro takvim: bugün ve yarın, gün adı ve TSİ saatiyle
 7. Liq radarı: 24s aralığı ((high-low)/low) en geniş 3 coin ve bu aralığın 5x liq mesafesine (~%20) oranı. Örn: "BCH %9,1 → liq mesafesinin %46'sı"
