@@ -214,10 +214,10 @@ Başlık: "☀️ Sabah Brifingi — GG.AA.YYYY HH:MM TSİ"
    🔴 Bugün kurallarına uymuyor: 24s aralık ≥ %10 (liq mesafenin ≥ yarısı) VEYA |OI 24s değişimi| ≥ %15 VEYA 24s fiyat değişimi ≤ -%5
    🟡 Temkinli: geri kalanlar (en belirleyici nedeni yaz: kalabalık long, geniş aralık veya OI hareketi)
    Binance verisi alınamadıysa bu maddeye "Binance verisi olmadan filtre uygulanamadı" yaz.
-9. Kritik seviyeler: en fazla 2 tane, BTC/ETH veya 4. maddede öne çıkan coin için dünün tepe/dibi (prev_day_high/low) veya son 7 günün tepe/dibi (high_7d/low_7d) seviyesine dayalı; fiyata en yakın anlamlı seviyeyi seç. Biçim: "<coin> <seviye> altına inerse (dünün dibi) → long tutanlar için likidasyon zinciri riski artabilir" veya "<coin> <seviye> üstüne çıkarsa (7 günün tepesi) → short tutanlar için sert yükseliş riski artabilir". Seviyenin ne olduğunu (dünün/7 günün dibi/tepesi) ve kimin için hangi risk olduğunu mutlaka yaz. Yön tahmini veya işlem önerisi yapma.
+9. Kritik seviyeler: en fazla 2 tane, BTC/ETH veya 4. maddede öne çıkan coin için dünün tepe/dibi (prev_day_high/low) veya son 7 günün tepe/dibi (high_7d/low_7d) seviyesine dayalı. Aşağı yön için fiyatın altındaki en yakın seviyeyi seç: dünün dibi fiyatın altındaysa onu, değilse son 7 günün dibini kullan. Yukarı yön için de aynısı: dünün tepesi fiyatın üstündeyse onu, değilse son 7 günün tepesini kullan. Biçim: "<coin> <seviye> altına inerse (dünün dibi) → long tutanlar için likidasyon zinciri riski artabilir" veya "<coin> <seviye> üstüne çıkarsa (7 günün tepesi) → short tutanlar için sert yükseliş riski artabilir". Seviyenin ne olduğunu (dünün/7 günün dibi/tepesi) ve kimin için hangi risk olduğunu mutlaka yaz. Yön tahmini veya işlem önerisi yapma.
 10. Yön özeti (geçmiş veriye göre; işlem önerisi değil): SADECE direction_summary ve evidence alanlarını kullan, kendi yorumunla yön üretme. Bu madde en fazla 6 satır olabilir.
    - direction_summary null ise veya evidence.status "ok" değilse sadece "Yön özeti: backtest verisi yok." yaz.
-   - Aksi halde şu satırları bu sırayla yaz. Aynı koşulu paylaşan coinleri tek satırda grupla; koşulu sade Türkçe ve kısa yaz (desc_tr'nin anlamını değiştirme); USDT değerlerini işaretli ve Türkçe ondalıkla yaz (örn: +2,75):
+   - Aksi halde şu satırları bu sırayla yaz. Aynı koşulu paylaşan coinleri tek satırda grupla; koşulu sade Türkçe ve kısa yaz (desc_tr'nin anlamını değiştirme); USDT değerlerini işaretli, 2 ondalıklı ve Türkçe ondalıkla yaz (örn: +2,75; +0,01; -1,48), liq oranını 1 ondalıkla yaz (örn: %0,4):
      "📈 Long lehine: <coinler> → <koşul>, geçmişte long işlem başı <avg_pnl_true> USDT (diğer günler <avg_pnl_false>, liq %<liq_rate_true>)" — long_favored boşsa "📈 Long lehine: kanıt yok"
      "📉 Short lehine: <coinler> → <koşul>, geçmişte short işlem başı <avg_pnl_true> USDT (diğer günler <avg_pnl_false>, liq %<liq_rate_true>)" — short_favored boşsa "📉 Short lehine: kanıt yok"
      long_weaker veya short_weaker doluysa: "⚠️ <Long/Short> için zayıf: <coinler> → <koşul>, <avg_pnl_true> USDT"
@@ -290,7 +290,8 @@ HTTP 200 ve "ok":true değilse hatayı raporla. Başarılıysa tek cümleyle "g�
 - ✅ Haftalık backtest cron'u eklendi (pazar 02:15 UTC)
 - ✅ Routine yeni prompt'la elle çalıştırıldı (28.09 22:05): Binance rakamlarının hepsi veriyle birebir, 3.267 karakter
 - ✅ Yön özeti (direction_summary) + SL karşılaştırması VPS'te çalışıyor (fc58350, 22 test OK); yayında: short lehine BCH, SUI, ADA, AVAX; long lehine yok
-- ⏳ Yeni prompt'un (yön özeti + saat kuralı) routine'e yapıştırılması
+- ✅ Yön özeti + saat kuralı prompt'u routine'de; 28.09 22:21 elle çalıştırma doğrulandı (rakamlar ve gruplar veriyle birebir)
+- ⏳ 2 biçim düzeltmesi (10. maddede 2 ondalık, 9. maddede en yakın seviye kuralı) routine'e yapıştırılacak
 
 ### SL bulguları (28.09.2026, aynı 7.964 işlem)
 
