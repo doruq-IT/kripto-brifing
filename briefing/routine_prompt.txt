@@ -16,20 +16,22 @@ VERİ
 - Fiyatlar: Crypto.com bağlayıcısı (BTC, ETH, SOL, XRP, ADA, AVAX, LINK, DOT, LTC, BCH, SUI; USDT pariteleri; son fiyat, 24s değişim, 24s high/low).
 - Binance futures türev verisi: SADECE şu komutla al: curl -s "https://raw.githubusercontent.com/doruq-IT/kripto-brifing/market-data/latest.json" → her coin için funding_rate_pct (8 saatlik funding, yüzde), oi_usdt, oi_change_4h_pct, oi_change_24h_pct, global_long_pct (long hesap yüzdesi), top_trader_position_ls_ratio, taker_buy_sell_ratio (1'in altı = satıcı baskın), range_24h_pct. Bu veri Okan'ın VPS'inden saatlik yayınlanıyor. generated_at alanı 3 saatten eskiyse, dosya alınamazsa veya coins boşsa türev maddesine "Binance verisi alınamadı" yaz ve bu verideki hiçbir rakamı kullanma. Fiyat için ana kaynak Crypto.com olarak kalsın; Crypto.com fiyatı alınamazsa bu dosyadaki price/high_24h/low_24h yedek olarak kullanılabilir.
 - Korku-açgözlülük endeksi: SADECE şu komutla al: curl -s "https://api.alternative.me/fng/?limit=2" → bugünkü değer, sınıfı ve dünkü değer. Başka site kullanma.
-- Haberler ve makro takvim: web araması. Tek kaynağa dayanan haberi "doğrulanmadı" diye işaretle. Rakam uydurma; bulamadığını "alınamadı" yaz.
+- Haberler ve makro takvim: web araması. Tek kaynağa dayanan haberi, iddiayı veya rakamı her seferinde "doğrulanmadı" diye işaretle. Rakam uydurma; bulamadığını "alınamadı" yaz.
 
 FORMAT (düz metin, en fazla 9 madde, her madde en fazla 2 satır, toplam 3500 karakteri geçme)
 - Hiç link, URL, köşeli parantez veya Markdown kullanma. Kaynakları sadece adıyla yaz.
 - Yüzdeleri Türkçe biçimde yaz: -%2,19 / +%0,24.
+- Maddeleri "1.", "2." biçiminde numarala.
+- Türev verisinden yapılan tüm çıkarımları "olası", "işaret olabilir" gibi temkinli dille yaz; kesin hüküm kurma.
 Başlık: "☀️ Sabah Brifingi — GG.AA.YYYY HH:MM TSİ"
-1. BTC ve ETH: fiyat, 24s değişim, günün dibine/tepesine yakınlık
+1. BTC ve ETH: fiyat, 24s değişim, gün aralığındaki konum ((fiyat-low)/(high-low)): %0-25 "dibe yakın", %25-75 "orta bant", %75-100 "tepeye yakın"
 2. En çok düşen ve yükselen 3'er büyük coin (tek satır)
-3. Korku-açgözlülük: bugünkü değer + sınıf, dünkü değer (Alternative.me)
+3. Korku-açgözlülük: bugünkü değer + sınıf, dünkü değer (Alternative.me). Sınıfı Türkçe yaz: Aşırı Korku, Korku, Nötr, Açgözlülük, Aşırı Açgözlülük
 4. Türev radarı (Binance): BTC ve ETH için funding, 24s OI değişimi, long hesap yüzdesi. Ayrıca listeden en uç sinyali veren 1-2 coin (en yüksek/negatif funding, en büyük 24s OI değişimi (artış = pozisyon birikimi; fiyat düşüşüyle birlikte sert OI düşüşü = likidasyon/pozisyon kapanması) veya long hesap oranı %70 üstü). Örn: "ETH: funding -%0,0001, OI 24s +%3,2, hesapların %73'ü long → kalabalık long". Yorum yaparken kesin dil kullanma.
-5. En fazla 2 önemli haber
+5. En fazla 2 önemli haber. Tek kaynaklı iddia ve rakamları "doğrulanmadı" diye işaretle
 6. Makro takvim: bugün ve yarın, gün adı ve TSİ saatiyle
 7. Liq radarı: 24s aralığı ((high-low)/low) en geniş 3 coin ve bu aralığın 5x liq mesafesine (~%20) oranı. Örn: "BCH %9,1 → liq mesafesinin %46'sı"
-8. ⚠️ Bugün dikkat etmen gereken tek şey: kurallar ve hata müzesine göre, en az bir somut sayıyla (4. veya 7. maddeden ya da makro saatinden). Kalabalık long + yükselen OI gibi bir türev sinyali varsa bunu Okan'ın "herkes alıyor"/FOMO hatasıyla ilişkilendirebilirsin. Her gün aynı cümleyi kurma. En fazla 3 satır.
+8. ⚠️ Bugün dikkat etmen gereken tek şey: kurallar ve hata müzesine göre, en az bir somut sayıyla (4. veya 7. maddeden ya da makro saatinden). Kalabalık long + yükselen OI gibi bir türev sinyali varsa bunu Okan'ın "herkes alıyor"/FOMO hatasıyla ilişkilendirebilirsin. Her gün aynı cümleyi kurma. Türev çıkarımlarını temkinli dille yaz. En fazla 3 satır.
 9. Radar: "Bugün hangi coinleri izliyorsun?"
 Son satır: kısa kaynak listesi (sadece adlar; Binance verisi kullanıldıysa "Binance Futures" ekle).
 
