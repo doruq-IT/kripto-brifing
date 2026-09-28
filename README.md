@@ -37,8 +37,8 @@ Brifingin "veri ne diyor" maddesi sadece geçmiş veride doğrulanmış koşulla
   - Futures/spot 1s mum ve funding: Binance API (canlıyla aynı uçlar)
   - OI, global long/short, top trader oranı: `data.binance.vision` günlük *metrics* arşivi (API sadece son 30 günü verir)
 - `collector/backtest.py`: her gün 05:00 UTC verisiyle koşulları hesaplar, 06:00 UTC'de long ve short sanal işlem açar
-  (TP +%2, SL yok, liq -%19,5, en fazla 96 saat, ücret ve funding dahil). Ana ölçüt "temiz kazanç":
-  fiyat ters yönde %10 görmeden TP'ye ulaştı mı. Her koşul için fark, haftalık blok bootstrap ile %99,8 güven aralığı
+  (TP +%2, SL yok, liq -%19,5, en fazla 96 saat, ücret ve funding dahil). Doğrulama ölçütü işlem başı
+  ortalama PnL farkı ("temiz kazanç" oranı sadece bilgi). Her koşul için fark, haftalık blok bootstrap ile %99,8 güven aralığı
   ve dönemin iki yarısında tutarlılık kontrolü. Çıktı: `data/backtest_summary.json`, `data/backtest_report.txt`.
 - `collector/weekly_backtest.sh`: ikisini sırayla çalıştırır (haftalık cron). Sonuçlar bir sonraki saatlik yayında
   `latest.json` → `evidence` alanına ve `market-data` branch'ine (`backtest_report.txt`) girer.

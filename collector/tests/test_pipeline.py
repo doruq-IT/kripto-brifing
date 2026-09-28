@@ -169,6 +169,32 @@ class TestSimulate(unittest.TestCase):
         self.assertAlmostEqual(out["pnl"], -0.25 - 250 * 0.001)
 
 
+class TestConditionMetric(unittest.TestCase):
+    def test_higher_clean_rate_but_more_liqs_is_negative(self):
+        """Oynaklık tuzağı: koşul %2'ye daha sık ulaştırıyor ama liq'i artırıyor → olumsuz."""
+        import backtest as bt
+        from datetime import date, timedelta
+        trades = []
+        d0 = date(2025, 1, 6)
+        for i in range(40 * 7):
+            day = d0 + timedelta(days=i)
+            wk = "%d-%02d" % day.isocalendar()[:2]
+            for grp, n_tp, n_liq, n_to in ((True, 8, 1, 1), (False, 7, 0, 3)):
+                for k in range(n_tp + n_liq + n_to):
+                    res = "tp" if k < n_tp else ("liq" if k < n_tp + n_liq else "timeout")
+                    pnl = {"tp": 4.75, "liq": -50.0, "timeout": -0.25}[res]
+                    trades.append({"res": res, "clean": res == "tp", "pain": res == "liq", "pnl": pnl,
+                                   "hours": 5, "date": day.isoformat(), "week": wk,
+                                   "conds": {"x": grp}})
+        weeks = sorted({t["week"] for t in trades})
+        dates = sorted({t["date"] for t in trades})
+        with mock.patch.dict(bt.P, {"bootstrap": 300}):
+            r = bt.test_condition(trades, "x", weeks, dates[len(dates) // 2], random.Random(1))
+        self.assertGreater(r["lift_pp"], 0)      # temiz oran daha yüksek...
+        self.assertLess(r["pnl_lift"], 0)        # ...ama işlem başı sonuç daha kötü
+        self.assertTrue(r["validated"])
+
+
 class TestMetricsParsing(unittest.TestCase):
     def test_parse_zip_and_times(self):
         import history_download as hd
@@ -223,6 +249,8 @@ class TestBacktestEndToEnd(unittest.TestCase):
             self.assertIn(("funding_negative", "long"), ids)
             c = next(c for c in s["conditions"] if c["id"] == "funding_negative" and c["direction"] == "long")
             self.assertGreater(c["lift_pp"], 10)
+            self.assertGreater(c["pnl_lift"], 0)
+            self.assertEqual(c["effect"], "olumlu")
             self.assertGreater(s["base"]["long"]["n"], 500)
             self.assertTrue((Path(tmp) / "backtest_report.txt").read_text().startswith("BACKTEST RAPORU"))
 

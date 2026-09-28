@@ -14,11 +14,13 @@ Kurgu (ortam değişkenleriyle değiştirilebilir):
     İki yönlü %0,05 taker ücreti ve tutma süresindeki funding ödemeleri dahil.
 
 İstatistik:
-  - Her koşul için: koşul doğruyken ve yanlışken temiz kazanç oranı, fark (pp).
+  - Her koşul için: koşul doğruyken ve yanlışken işlem başı ortalama PnL ve
+    temiz kazanç oranı. Doğrulama PnL farkına göre yapılır; temiz kazanç tek
+    başına yanıltıcıdır (oynaklık iki yönde de TP'yi hızlandırır ama liq'i artırır).
   - Güven aralığı: haftalık blok bootstrap (coinler aynı gün, işlemler ardışık
     günlerde birbirine bağımlı olduğu için hafta bazında yeniden örnekleme).
   - Çoklu test: ~58 test yapıldığı için %99,8 aralık kullanılır (Bonferroni'ye yakın).
-  - "Doğrulanmış" = aralık sıfırı içermiyor + dönemin iki yarısında da aynı yön
+  - "Doğrulanmış" = PnL farkının aralığı sıfırı içermiyor + iki yarıda da aynı yön
     + koşulun doğru olduğu en az MIN_N işlem ve 30 farklı gün.
 
 Çıktı: data/backtest_summary.json (collector okur), data/backtest_report.txt
@@ -217,6 +219,12 @@ def rate(w, n):
 
 
 def test_condition(ts, cid, weeks, mid_date, rng):
+    """Koşul doğru/yanlış karşılaştırması.
+
+    Doğrulama ölçütü işlem başı ortalama PnL farkıdır (Okan'ın gerçekte kazandığı).
+    Temiz kazanç oranı farkı da raporlanır ama tek başına kanıt sayılmaz: yüksek
+    oynaklık %2'ye her iki yönde de daha sık ulaştırır, fakat liq'i de artırır.
+    """
     A = [t for t in ts if t["conds"].get(cid) is True]
     B = [t for t in ts if t["conds"].get(cid) is False]
     res = {"n_true": len(A), "n_false": len(B), "days_true": len({t["date"] for t in A})}
@@ -225,47 +233,58 @@ def test_condition(ts, cid, weeks, mid_date, rng):
     pA = rate(sum(t["clean"] for t in A), len(A))
     pB = rate(sum(t["clean"] for t in B), len(B))
     lift = pA - pB
-    per = {w: [0, 0, 0, 0] for w in weeks}
+    sa, sb = stats(A), stats(B)
+    pnl_lift = sa["avg_pnl_usdt"] - sb["avg_pnl_usdt"]
+    # hafta başına: [temizA, nA, temizB, nB, pnlA, pnlB]
+    per = {w: [0, 0, 0, 0, 0.0, 0.0] for w in weeks}
     for t in A:
-        per[t["week"]][0] += t["clean"]
-        per[t["week"]][1] += 1
+        x = per[t["week"]]
+        x[0] += t["clean"]; x[1] += 1; x[4] += t["pnl"]
     for t in B:
-        per[t["week"]][2] += t["clean"]
-        per[t["week"]][3] += 1
+        x = per[t["week"]]
+        x[2] += t["clean"]; x[3] += 1; x[5] += t["pnl"]
     rows = [per[w] for w in weeks]
-    lifts = []
+    lifts, pnl_lifts = [], []
     for _ in range(P["bootstrap"]):
         wa = na = wb = nb = 0
+        qa = qb = 0.0
         for _ in range(len(rows)):
             x = rows[rng.randrange(len(rows))]
-            wa += x[0]; na += x[1]; wb += x[2]; nb += x[3]
+            wa += x[0]; na += x[1]; wb += x[2]; nb += x[3]; qa += x[4]; qb += x[5]
         if na and nb:
             lifts.append(100 * (wa / na - wb / nb))
-    lifts.sort()
+            pnl_lifts.append(qa / na - qb / nb)
     tail = (100 - P["ci_level_pct"]) / 200
-    lo = lifts[int(tail * len(lifts))] if lifts else None
-    hi = lifts[min(len(lifts) - 1, int((1 - tail) * len(lifts)))] if lifts else None
+
+    def ci(v):
+        if not v:
+            return None, None
+        v.sort()
+        return v[int(tail * len(v))], v[min(len(v) - 1, int((1 - tail) * len(v)))]
+
+    lo, hi = ci(lifts)
+    plo, phi = ci(pnl_lifts)
 
     def half(pred):
         a = [t for t in A if pred(t["date"])]
         b = [t for t in B if pred(t["date"])]
         if not a or not b:
-            return None
-        return rate(sum(t["clean"] for t in a), len(a)) - rate(sum(t["clean"] for t in b), len(b))
+            return None, None
+        return (rate(sum(t["clean"] for t in a), len(a)) - rate(sum(t["clean"] for t in b), len(b)),
+                statistics.mean(t["pnl"] for t in a) - statistics.mean(t["pnl"] for t in b))
 
-    h1, h2 = half(lambda x: x < mid_date), half(lambda x: x >= mid_date)
-    sa = stats(A)
+    (h1, ph1), (h2, ph2) = half(lambda x: x < mid_date), half(lambda x: x >= mid_date)
+    r2 = lambda v: round(v, 2) if v is not None else None  # noqa: E731
     res.update({
         "rate_true": round(pA, 2), "rate_false": round(pB, 2), "lift_pp": round(lift, 2),
-        "ci_low": round(lo, 2) if lo is not None else None,
-        "ci_high": round(hi, 2) if hi is not None else None,
-        "half1_lift": round(h1, 2) if h1 is not None else None,
-        "half2_lift": round(h2, 2) if h2 is not None else None,
-        "liq_rate_true": sa["liq_rate"], "liq_rate_false": stats(B)["liq_rate"],
-        "avg_pnl_true": sa["avg_pnl_usdt"], "avg_pnl_false": stats(B)["avg_pnl_usdt"],
+        "ci_low": r2(lo), "ci_high": r2(hi), "half1_lift": r2(h1), "half2_lift": r2(h2),
+        "liq_rate_true": sa["liq_rate"], "liq_rate_false": sb["liq_rate"],
+        "avg_pnl_true": sa["avg_pnl_usdt"], "avg_pnl_false": sb["avg_pnl_usdt"],
+        "pnl_lift": round(pnl_lift, 3), "pnl_ci_low": r2(plo), "pnl_ci_high": r2(phi),
+        "pnl_half1": r2(ph1), "pnl_half2": r2(ph2),
     })
-    same_sign = h1 is not None and h2 is not None and h1 * lift > 0 and h2 * lift > 0
-    excl_zero = lo is not None and (lo > 0 or hi < 0)
+    same_sign = ph1 is not None and ph2 is not None and ph1 * pnl_lift > 0 and ph2 * pnl_lift > 0
+    excl_zero = plo is not None and (plo > 0 or phi < 0)
     res["validated"] = bool(
         len(A) >= P["min_n"] and len(B) >= P["min_n"] and res["days_true"] >= 30
         and excl_zero and same_sign and len(weeks) >= 20
@@ -313,8 +332,8 @@ def main():
         for cid, desc, _ in fx.CONDITIONS:
             r = test_condition(ts, cid, weeks, mid, rng)
             r.update(id=cid, desc_tr=desc, direction=dname)
-            if "lift_pp" in r:
-                r["effect"] = "olumlu" if r["lift_pp"] > 0 else "olumsuz"
+            if "pnl_lift" in r:
+                r["effect"] = "olumlu" if r["pnl_lift"] > 0 else "olumsuz"
             summary["conditions"].append(r)
     summary["tested"] = sum(1 for c in summary["conditions"] if "lift_pp" in c)
     summary["validated"] = [c for c in summary["conditions"] if c.get("validated")]
@@ -357,31 +376,34 @@ def render_report(s):
         L.append(f"{sym:<10}{fmt(lg['clean_rate']):>10}{fmt(lg['liq_rate']):>8}{fmt(lg['avg_pnl_usdt'], nd=2):>8}"
                  f"{fmt(sh['clean_rate']):>10}{fmt(sh['liq_rate']):>8}{fmt(sh['avg_pnl_usdt'], nd=2):>8}")
     L.append("")
-    L.append(f"3) DOĞRULANMIŞ KOŞULLAR ({len(s['validated'])} / {s['tested']} test, %{p['ci_level_pct']} blok-bootstrap aralığı)")
+    L.append(f"3) DOĞRULANMIŞ KOŞULLAR ({len(s['validated'])} / {s['tested']} test; ölçüt: işlem başı PnL farkı, "
+             f"%{p['ci_level_pct']} blok-bootstrap aralığı + iki yarıda aynı yön)")
     if not s["validated"]:
-        L.append("  YOK. Test edilen hiçbir koşul, temiz kazanç oranını istatistiksel olarak anlamlı ve")
-        L.append("  dönemin iki yarısında tutarlı biçimde değiştirmedi. Brifing bu durumda kanıt iddia etmemeli.")
-    for c in sorted(s["validated"], key=lambda c: -abs(c["lift_pp"])):
-        L.append(f"  [{c['direction']}] {c['desc_tr']} ({c['id']}): temiz %{c['rate_true']:.1f} vs %{c['rate_false']:.1f} "
-                 f"→ {c['lift_pp']:+.1f} pp [{c['ci_low']:+.1f}, {c['ci_high']:+.1f}], n={c['n_true']}, "
-                 f"liq %{c['liq_rate_true']:.1f} vs %{c['liq_rate_false']:.1f}, yarılar {c['half1_lift']:+.1f}/{c['half2_lift']:+.1f}")
+        L.append("  YOK. Test edilen hiçbir koşul işlem başı sonucu istatistiksel olarak anlamlı ve dönemin")
+        L.append("  iki yarısında tutarlı biçimde değiştirmedi. Brifing bu durumda kanıt iddia etmemeli.")
+    for c in sorted(s["validated"], key=lambda c: -abs(c["pnl_lift"])):
+        L.append(f"  [{c['direction']}] {c['desc_tr']} ({c['id']}): PnL {c['avg_pnl_true']:+.2f} vs {c['avg_pnl_false']:+.2f} USDT "
+                 f"→ {c['pnl_lift']:+.2f} [{c['pnl_ci_low']:+.2f}, {c['pnl_ci_high']:+.2f}], yarılar {c['pnl_half1']:+.2f}/{c['pnl_half2']:+.2f}; "
+                 f"temiz %{c['rate_true']:.1f} vs %{c['rate_false']:.1f}, liq %{c['liq_rate_true']:.1f} vs %{c['liq_rate_false']:.1f}, n={c['n_true']}")
     L.append("")
     L.append("4) TÜM KOŞULLAR (doğrulanmamışlar dahil; sadece bilgi, brifingte kanıt olarak kullanılmaz)")
-    L.append(f"{'koşul':<22}{'yön':<6}{'n':>6}{'temiz% doğru':>13}{'yanlış':>8}{'fark':>7}{'aralık':>17}{'yarılar':>14}{'ok':>4}")
+    L.append(f"{'koşul':<20}{'yön':<6}{'n':>5}{'temiz% D/Y':>13}{'liq% D/Y':>11}{'PnL D/Y':>14}{'PnL fark':>9}{'aralık':>16}{'yarılar':>13}{'ok':>3}")
     for c in s["conditions"]:
-        if "lift_pp" not in c:
-            L.append(f"{c['id']:<22}{c['direction']:<6}{c['n_true']:>6}   (yetersiz veri)")
+        if "pnl_lift" not in c:
+            L.append(f"{c['id']:<20}{c['direction']:<6}{c['n_true']:>5}   (yetersiz veri)")
             continue
-        ci = f"[{fmt(c['ci_low'])},{fmt(c['ci_high'])}]"
-        hv = f"{fmt(c['half1_lift'])}/{fmt(c['half2_lift'])}"
-        L.append(f"{c['id']:<22}{c['direction']:<6}{c['n_true']:>6}{fmt(c['rate_true']):>13}{fmt(c['rate_false']):>8}"
-                 f"{c['lift_pp']:>+7.1f}{ci:>17}{hv:>14}{'✔' if c['validated'] else '':>4}")
+        ci = f"[{fmt(c['pnl_ci_low'], nd=2)},{fmt(c['pnl_ci_high'], nd=2)}]"
+        hv = f"{fmt(c['pnl_half1'], nd=2)}/{fmt(c['pnl_half2'], nd=2)}"
+        L.append(f"{c['id']:<20}{c['direction']:<6}{c['n_true']:>5}{fmt(c['rate_true']):>7}/{fmt(c['rate_false']):<5}"
+                 f"{fmt(c['liq_rate_true']):>6}/{fmt(c['liq_rate_false']):<4}{fmt(c['avg_pnl_true'], nd=2):>7}/{fmt(c['avg_pnl_false'], nd=2):<6}"
+                 f"{c['pnl_lift']:>+9.2f}{ci:>16}{hv:>13}{'✔' if c['validated'] else '':>3}")
     L.append("")
     L.append("NOTLAR")
     L.append("- Mum içi sıra bilinmediği için aynı saatte TP ve ters seviye birlikte görülürse ters seviye sayıldı (kötümser).")
     L.append("- Sonuçlar bu dönemin piyasa rejimine bağlıdır; geçmiş başarı geleceği garanti etmez.")
     L.append("- 11 coin aynı gün büyük ölçüde birlikte hareket eder; etkin örneklem işlem sayısından küçüktür (bootstrap bunu hafta bazında hesaba katar).")
     L.append("- Liq'e yakın ekleme simüle edilmedi; ekleme, liq olan işlemlerde kaybı ~2 katına çıkarır.")
+    L.append("- PnL'i nadir ama büyük liq kayıpları (-50 USDT) belirler; birkaç liq farkı sonucu değiştirebilir, bu yüzden eşik sıkıdır.")
     return "\n".join(L)
 
 

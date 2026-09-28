@@ -85,8 +85,8 @@ Varsayılan 11 coin: **BTC, ETH, BNB, SOL, XRP, ADA, AVAX, LINK, LTC, BCH, SUI**
 - Veri: futures/spot 1h mum ve funding Binance API'den; OI, global long%, top trader oranı `data.binance.vision` günlük metrics arşivinden (API sadece 30 gün veriyor). Varsayılan 365 gün + ısınma.
 - Her gün 05:00 UTC itibarıyla (brifingin okuduğu an) 29 koşul hesaplanır; 06:00 UTC açılışında long ve short sanal işlem.
 - Kurgu: 5x, 50 USDT marj, TP +%2, SL yok, liq -%19,5, en fazla 96 saat, %0,05×2 ücret, funding dahil, eklemesiz. Aynı mumda TP ve ters seviye → ters seviye sayılır (kötümser).
-- Ana ölçüt "temiz kazanç": ters yönde %10 (ekleme bölgesi) görmeden TP.
-- Doğrulama: koşul doğru/yanlış farkı için haftalık blok bootstrap %99,8 aralığı sıfırı içermemeli + dönemin iki yarısında aynı yön + en az 60 işlem ve 30 gün. ~58 test yapıldığı için sıkı eşik (çoklu test düzeltmesi).
+- Doğrulama ölçütü işlem başı ortalama PnL farkı. "Temiz kazanç" (ters yönde %10 görmeden TP) sadece bilgi: ilk gerçek çalıştırmada yüksek oynaklığın temiz kazancı artırıp liq'i de artırdığı, PnL'i ise düşürdüğü görüldü; bu yüzden tek başına kanıt sayılmaz.
+- Doğrulama: koşul doğru/yanlış PnL farkı için haftalık blok bootstrap %99,8 aralığı sıfırı içermemeli + dönemin iki yarısında aynı yön + en az 60 işlem ve 30 gün. ~58 test yapıldığı için sıkı eşik (çoklu test düzeltmesi).
 - Sentetik testlerde: gömülen gerçek etki yakalandı (+16,9 pp), saf gürültüde sahte kanıt çıkmadı.
 
 Ortam değişkenleri: `SYMBOLS` (virgülle), `PERIOD` (varsayılan `4h`), `DATA_DIR`.
@@ -217,8 +217,8 @@ Başlık: "☀️ Sabah Brifingi — GG.AA.YYYY HH:MM TSİ"
 9. Kritik seviyeler: en fazla 2 tane, BTC/ETH veya 4. maddede öne çıkan coin için dünün tepe/dibi (prev_day_high/low) veya son 7 günün tepe/dibi (high_7d/low_7d) seviyesine dayalı; fiyata en yakın anlamlı seviyeyi seç. Biçim: "<coin> <seviye> altına inerse (dünün dibi) → long tutanlar için likidasyon zinciri riski artabilir" veya "<coin> <seviye> üstüne çıkarsa (7 günün tepesi) → short tutanlar için sert yükseliş riski artabilir". Seviyenin ne olduğunu (dünün/7 günün dibi/tepesi) ve kimin için hangi risk olduğunu mutlaka yaz. Yön tahmini veya işlem önerisi yapma.
 10. Veri ne diyor (backtest kanıtı): SADECE evidence ve evidence_hits alanlarını kullan; kendi yorumunla kanıt üretme.
    - evidence yoksa veya evidence.status "ok" değilse: "Backtest verisi yok; bugün kanıta dayalı yorum yapılamaz." yaz.
-   - Hiçbir coinde evidence_hits yoksa: "Bugün geçmiş veride anlamlı üstünlük gösteren bir durum yok." yaz ve ardından tek cümle: "Filtresiz her gün long açılsaydı son <evidence.period.days> günde temiz %2 oranı %<evidence.base.long.clean_rate>, liq oranı %<evidence.base.long.liq_rate>."
-   - evidence_hits varsa: lift_pp mutlak değeri en büyük en fazla 3 tanesini yaz. Biçim: "<coin>: <desc_tr> → geçmişte bu durumda <long/short> için fiyatın ters yönde %10 görmeden %2'ye ulaşma oranı %<rate_true>, diğer günlerde %<rate_false> (n=<n_true>)." effect "olumsuz" ise cümleyi "<long/short> için daha zayıf" diye bitir.
+   - Hiçbir coinde evidence_hits yoksa: "Bugün geçmiş veride anlamlı üstünlük gösteren bir durum yok." yaz ve ardından tek cümle: "Filtresiz her gün long açılsaydı son <evidence.period.days> günde işlem başı ortalama <evidence.base.long.avg_pnl_usdt> USDT, liq oranı %<evidence.base.long.liq_rate>."
+   - evidence_hits varsa: pnl_lift mutlak değeri en büyük en fazla 3 tanesini yaz. Biçim: "<coin>: <desc_tr> → geçmişte bu durumda <long/short> işlem başı ortalama <avg_pnl_true> USDT, diğer günlerde <avg_pnl_false> USDT (liq %<liq_rate_true>, n=<n_true>)." effect "olumsuz" ise cümleyi "→ <long/short> için daha zayıf" diye bitir. USDT değerlerini + veya - işaretiyle ve Türkçe ondalıkla yaz (örn: +2,75 USDT).
    - Bu madde de işlem önerisi değildir: "gir", "al", "sat", "long aç", "short aç" yazma. Rakamları değiştirme veya yuvarlama dışında yorumlama.
 11. ⚠️ Bugün dikkat: kurallar ve hata müzesine göre tek ana uyarı, en az bir somut sayıyla (4., 7., 8. veya 10. maddeden ya da makro saatinden). Kalabalık long + yükselen OI varsa bunu "herkes alıyor"/FOMO hatasıyla ilişkilendirebilirsin. Sert OI düşüşü olan coinlerde "dipten döner" diyip zarardaki pozisyona ekleme riskini hatırlat. Her gün aynı cümleyi kurma. Sade dille, en fazla 3 satır.
 Numarasız satır: "Bugün hangi coinleri izliyorsun?"

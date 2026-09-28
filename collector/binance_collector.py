@@ -261,8 +261,9 @@ def main():
         snap["conditions_true"] = sorted(k for k, v in conds.items() if v)
         snap["conditions_unknown"] = sorted(k for k, v in conds.items() if v is None)
         snap["evidence_hits"] = [
-            {k: v[k] for k in ("id", "desc_tr", "direction", "effect", "rate_true", "rate_false",
-                               "lift_pp", "n_true", "liq_rate_true")}
+            {k: v.get(k) for k in ("id", "desc_tr", "direction", "effect", "rate_true", "rate_false",
+                                   "avg_pnl_true", "avg_pnl_false", "pnl_lift", "n_true",
+                                   "liq_rate_true", "liq_rate_false")}
             for v in validated if conds.get(v["id"])
         ]
 
