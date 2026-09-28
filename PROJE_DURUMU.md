@@ -289,7 +289,16 @@ HTTP 200 ve "ok":true değilse hatayı raporla. Başarılıysa tek cümleyle "g�
 - ✅ İlk backtest (2025-09-28 → 2026-09-24, 362 gün) yayında: `market-data/backtest_report.txt`
 - ✅ Haftalık backtest cron'u eklendi (pazar 02:15 UTC)
 - ✅ Routine yeni prompt'la elle çalıştırıldı (28.09 22:05): Binance rakamlarının hepsi veriyle birebir, 3.267 karakter
-- ⏳ Yön özeti (direction_summary) + SL karşılaştırması: kod push'landı, VPS'te pull + backtest + yeni prompt bekleniyor
+- ✅ Yön özeti (direction_summary) + SL karşılaştırması VPS'te çalışıyor (fc58350, 22 test OK); yayında: short lehine BCH, SUI, ADA, AVAX; long lehine yok
+- ⏳ Yeni prompt'un (yön özeti + saat kuralı) routine'e yapıştırılması
+
+### SL bulguları (28.09.2026, aynı 7.964 işlem)
+
+- Long, tüm işlemler: her stop ortalama kaybı azaltıyor (stop yok -1,48 → %3 stop -0,64 USDT) ama fark istatistiksel olarak anlamlı değil ve long her seçenekte negatif. Sorun stop değil, giriş.
+- Short, tüm işlemler: stop etkisiz (≈0).
+- Doğrulanmış short durumlarında (sert düşüş, long tasfiyesi) %2-5 stop ortalamayı ~2 USDT düşürüyor (anlamlı, iki yarıda tutarlı): sert düşüş sonrası fiyat önce sıçrayıp stop'u alıyor, sonra TP'ye gidiyor. %10 stop ≈ nötr (fark -0,16 / -0,36, anlamlı değil).
+- En kötü işlem: stop yok -50, %10 stop ≈ -26, %5 ≈ -13 USDT. 5 eş zamanlı pozisyonda liq kuyruğu -250 USDT; %10 stop bunu ~-128'e indirir (aritmetik, backtest ortalamasına dayalı değil).
+- Öneri (Okan'a sunuldu): sıkı stop yok; istenirse %10 "felaket stop'u" (ortalamaya maliyeti anlamlı değil, en kötü kaybı yarıya indirir). Brifing stop'tan sadece anlamlı fark varsa bahseder; şu an bahsetmez.
 
 ### İlk backtest bulguları (28.09.2026)
 
