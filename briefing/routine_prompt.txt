@@ -1,0 +1,41 @@
+Okan için kripto sabah brifingi hazırla ve Telegram kanalına gönder. Al/sat tavsiyesi verme.
+
+OKAN'IN PROFİLİ VE KURALLARI
+- 3 yıllık kripto tecrübesi, hedef aktif işlemle düzenli gelir. Kasa ~500 USDT.
+- Sadece futures, her işlem 5x isolated, işlem başı 50 USDT marj, en fazla 5 pozisyon, gün içi ile 3-4 gün arası tutar.
+- TP: %10 ROE (≈%2 fiyat). SL koymuyor, liq'e yakın bir kez ekleme yapıyor.
+- Risk/ödül: kazanç ≈ +5 USDT, liq ≈ -50 USDT (eklemeyle -100). Başa baş için ~%91 isabet gerekir. 5x'te ~%20 ters hareket = liq.
+- Sadece büyük, stabil coinler. Memecoin ve volatil coin yok. 5x üstü kaldıraç yok.
+HATA MÜZESİ
+- En pahalı ders: memecoin'de kasa bir gecede 2 katına çıktı, kâr alınmadı, liq oldu, "dipten döner, kaybımı kurtarırım" diyerek tekrar girdi, 2-3 liq sonrası kasa sıfırlandı.
+- Tekrarlayan hatalar: zarardaki pozisyona ekleme, FOMO, kâr alamamak, başkasının sözüyle işlem, plansız pozisyon, liq sonrası intikam işlemi.
+- Uyarı cümleleri: "dipten döner", "kaybımı kurtarırım", "bu garanti işlem", "bu sefer farklı", "herkes alıyor".
+
+VERİ
+- Tarih/saat: `TZ=Europe/Istanbul date` komutuyla al. "Bugün/yarın" ifadelerini buna göre yaz.
+- Fiyatlar: Crypto.com bağlayıcısı (BTC, ETH, SOL, XRP, ADA, AVAX, LINK, DOT, LTC, BCH, SUI; USDT pariteleri; son fiyat, 24s değişim, 24s high/low).
+- Binance futures türev verisi: SADECE şu komutla al: curl -s "https://raw.githubusercontent.com/doruq-IT/kripto-brifing/market-data/latest.json" → her coin için funding_rate_pct (8 saatlik funding, yüzde), oi_usdt, oi_change_4h_pct, oi_change_24h_pct, global_long_pct (long hesap yüzdesi), top_trader_position_ls_ratio, taker_buy_sell_ratio (1'in altı = satıcı baskın), range_24h_pct. Bu veri Okan'ın VPS'inden saatlik yayınlanıyor. generated_at alanı 3 saatten eskiyse, dosya alınamazsa veya coins boşsa türev maddesine "Binance verisi alınamadı" yaz ve bu verideki hiçbir rakamı kullanma. Fiyat için ana kaynak Crypto.com olarak kalsın; Crypto.com fiyatı alınamazsa bu dosyadaki price/high_24h/low_24h yedek olarak kullanılabilir.
+- Korku-açgözlülük endeksi: SADECE şu komutla al: curl -s "https://api.alternative.me/fng/?limit=2" → bugünkü değer, sınıfı ve dünkü değer. Başka site kullanma.
+- Haberler ve makro takvim: web araması. Tek kaynağa dayanan haberi "doğrulanmadı" diye işaretle. Rakam uydurma; bulamadığını "alınamadı" yaz.
+
+FORMAT (düz metin, en fazla 9 madde, her madde en fazla 2 satır, toplam 3500 karakteri geçme)
+- Hiç link, URL, köşeli parantez veya Markdown kullanma. Kaynakları sadece adıyla yaz.
+- Yüzdeleri Türkçe biçimde yaz: -%2,19 / +%0,24.
+Başlık: "☀️ Sabah Brifingi — GG.AA.YYYY HH:MM TSİ"
+1. BTC ve ETH: fiyat, 24s değişim, günün dibine/tepesine yakınlık
+2. En çok düşen ve yükselen 3'er büyük coin (tek satır)
+3. Korku-açgözlülük: bugünkü değer + sınıf, dünkü değer (Alternative.me)
+4. Türev radarı (Binance): BTC ve ETH için funding, 24s OI değişimi, long hesap yüzdesi. Ayrıca listeden en uç sinyali veren 1-2 coin (en yüksek/negatif funding, en büyük 24s OI artışı veya long hesap oranı %70 üstü). Örn: "ETH: funding -%0,0001, OI 24s +%3,2, hesapların %73'ü long → kalabalık long". Yorum yaparken kesin dil kullanma.
+5. En fazla 2 önemli haber
+6. Makro takvim: bugün ve yarın, gün adı ve TSİ saatiyle
+7. Liq radarı: 24s aralığı ((high-low)/low) en geniş 3 coin ve bu aralığın 5x liq mesafesine (~%20) oranı. Örn: "BCH %9,1 → liq mesafesinin %46'sı"
+8. ⚠️ Bugün dikkat etmen gereken tek şey: kurallar ve hata müzesine göre, en az bir somut sayıyla (4. veya 7. maddeden ya da makro saatinden). Kalabalık long + yükselen OI gibi bir türev sinyali varsa bunu Okan'ın "herkes alıyor"/FOMO hatasıyla ilişkilendirebilirsin. Her gün aynı cümleyi kurma. En fazla 3 satır.
+9. Radar: "Bugün hangi coinleri izliyorsun?"
+Son satır: kısa kaynak listesi (sadece adlar; Binance verisi kullanıldıysa "Binance Futures" ekle).
+
+GÖNDERİM
+Metni /tmp/brifing.txt dosyasına yaz. Göndermeden önce Markdown linklerini temizle:
+sed -i -E 's/\[([^]]+)\]\([^)]+\)/\1/g; s#https?://[^ )]+##g' /tmp/brifing.txt
+Sonra gönder (token'ı asla yazdırma):
+curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" --data-urlencode "text@/tmp/brifing.txt" -d "disable_web_page_preview=true" -w "\nHTTP %{http_code}\n"
+HTTP 200 ve "ok":true değilse hatayı raporla. Başarılıysa tek cümleyle "gönderildi" yaz.
