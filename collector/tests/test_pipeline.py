@@ -159,6 +159,25 @@ class TestSimulate(unittest.TestCase):
         self.assertEqual(out["res"], "timeout")
         self.assertAlmostEqual(out["pnl"], -0.25)  # sadece ücret
 
+    def test_stop_loss_long(self):
+        bars = self.flat(100, {4: bar(T0 + 4 * HOUR, 100, 100.5, 94.5, 95)})
+        out = self.bt.simulate(self.sym(bars), 0, 1, sl=5)
+        self.assertEqual(out["res"], "sl")
+        self.assertAlmostEqual(out["pnl"], -250 * 0.0505 - 0.25)
+        self.assertEqual(self.bt.simulate(self.sym(bars), 0, 1)["res"], "timeout")  # stop'suz: devam
+
+    def test_stop_before_tp_in_same_bar(self):
+        bars = self.flat(100, {2: bar(T0 + 2 * HOUR, 100, 103, 96, 101)})
+        self.assertEqual(self.bt.simulate(self.sym(bars), 0, 1, sl=3)["res"], "sl")
+        self.assertEqual(self.bt.simulate(self.sym(bars), 0, 1)["res"], "tp")
+
+    def test_stop_prevents_liq_short(self):
+        bars = self.flat(100, {3: bar(T0 + 3 * HOUR, 100, 125, 99.5, 120)})
+        self.assertEqual(self.bt.simulate(self.sym(bars), 0, -1)["res"], "liq")
+        out = self.bt.simulate(self.sym(bars), 0, -1, sl=8)
+        self.assertEqual(out["res"], "sl")
+        self.assertGreater(out["pnl"], -50)
+
     def test_window_too_short(self):
         self.assertIsNone(self.bt.simulate(self.sym(self.flat(50, {})), 0, 1))
 
@@ -252,7 +271,13 @@ class TestBacktestEndToEnd(unittest.TestCase):
             self.assertGreater(c["pnl_lift"], 0)
             self.assertEqual(c["effect"], "olumlu")
             self.assertGreater(s["base"]["long"]["n"], 500)
-            self.assertTrue((Path(tmp) / "backtest_report.txt").read_text().startswith("BACKTEST RAPORU"))
+            report = (Path(tmp) / "backtest_report.txt").read_text()
+            self.assertTrue(report.startswith("BACKTEST RAPORU"))
+            self.assertIn("5) STOP-LOSS", report)
+            rows = s["sl_analysis"]["base"]["long"]
+            self.assertEqual([r["sl_pct"] for r in rows], [None, 2, 3, 5, 8, 10])
+            self.assertTrue(all(r["liq_rate"] == 0 for r in rows[1:]))  # stop varken liq olmaz
+            self.assertIn("long", s["sl_summary"])
 
     def test_noise_produces_no_false_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -313,7 +338,7 @@ class TestCollector(unittest.TestCase):
             summary = {"generated_at": now.isoformat(), "period": {}, "params": {}, "base": {},
                        "per_coin": {}, "tested": 1,
                        "validated": [{"id": "trend_up_1d", "desc_tr": "x", "direction": "long", "effect": "olumlu",
-                                      "rate_true": 70, "rate_false": 60, "lift_pp": 10, "n_true": 100,
+                                      "rate_true": 70, "rate_false": 60, "lift_pp": 10, "n_true": 100, "pnl_lift": 1.0,
                                       "liq_rate_true": 1}]}
             Path(tmp, "backtest_summary.json").write_text(json.dumps(summary))
 
@@ -337,6 +362,11 @@ class TestCollector(unittest.TestCase):
         self.assertIsInstance(latest["btc_trend_up_1d"], bool)
         self.assertEqual(bool(c["evidence_hits"]), "trend_up_1d" in c["conditions_true"])
         self.assertEqual(latest["feature_time"][11:16], "05:00")
+        ds = latest["direction_summary"]
+        if "trend_up_1d" in c["conditions_true"]:
+            self.assertEqual([x["coin"] for x in ds["long_favored"]], ["BTC"])
+        else:
+            self.assertEqual(ds["no_evidence"], ["BTC"])
 
     def _run(self, bc):
         with mock.patch.object(sys, "argv", ["x", "BTCUSDT"]):

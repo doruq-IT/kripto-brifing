@@ -57,6 +57,9 @@ P = {
     "bootstrap": int(os.getenv("BOOT", "2000")),
     "ci_level_pct": 99.8,
     "min_n": int(os.getenv("MIN_N", "60")),
+    # SL karşılaştırması: fiyat yüzdesi (5x'te ROE = 5 katı). Stop piyasa emriyle kapanır → kayma payı.
+    "sl_grid": [float(x) for x in os.getenv("SL_GRID", "2,3,5,8,10").split(",") if x],
+    "sl_slippage_pct": float(os.getenv("SL_SLIP", "0.05")),
 }
 HIST_DIR = Path(os.getenv("HIST_DIR", HERE / "data" / "history"))
 DATA_DIR = Path(os.getenv("DATA_DIR", HERE / "data"))
@@ -92,8 +95,11 @@ def load_symbol(sym):
     }
 
 
-def simulate(s, i, d):
-    """i: giriş mumu indeksi, d: +1 long / -1 short. Pencere eksikse None."""
+def simulate(s, i, d, sl=None):
+    """i: giriş mumu indeksi, d: +1 long / -1 short, sl: stop (fiyat %, None = stop yok).
+
+    Aynı mumda stop ve TP birlikte görülürse stop önce sayılır (kötümser). Pencere eksikse None.
+    """
     bars = s["fut"]
     hold = P["hold_h"]
     if i + hold > len(bars):
@@ -102,6 +108,7 @@ def simulate(s, i, d):
     tp = e * (1 + d * P["tp_pct"] / 100)
     adv = e * (1 - d * P["adverse_pct"] / 100)
     liq = e * (1 - d * P["liq_pct"] / 100)
+    stop = e * (1 - d * sl / 100) if sl is not None and sl < P["liq_pct"] else None
     pain, res, j = False, "timeout", i + hold - 1
     for j in range(i, i + hold):
         b = bars[j]
@@ -110,8 +117,11 @@ def simulate(s, i, d):
         else:
             hit_adv, hit_liq, hit_tp = b[H_] >= adv, b[H_] >= liq, b[L_] <= tp
         pain = pain or hit_adv
-        if hit_liq:
+        if hit_liq and stop is None:
             res = "liq"
+            break
+        if stop is not None and (b[L_] <= stop if d == 1 else b[H_] >= stop):
+            res = "sl"
             break
         if hit_tp:
             res = "tp"
@@ -122,7 +132,12 @@ def simulate(s, i, d):
     if res == "liq":
         pnl = -P["margin_usdt"]
     else:
-        move = P["tp_pct"] / 100 if res == "tp" else d * (bars[j][C_] / e - 1)
+        if res == "tp":
+            move = P["tp_pct"] / 100
+        elif res == "sl":
+            move = -(sl + P["sl_slippage_pct"]) / 100
+        else:
+            move = d * (bars[j][C_] / e - 1)
         pnl = notional * move - fee
         a = bisect_left(s["fund_raw_t"], entry_t + 1)
         b_ = bisect_left(s["fund_raw_t"], exit_t + 1)
@@ -170,6 +185,10 @@ def build_trades(data):
                 out = simulate(s, iE, d)
                 if out is None:
                     continue
+                out["sl"] = {}
+                for sl in P["sl_grid"]:
+                    o = simulate(s, iE, d, sl)
+                    out["sl"][sl] = (o["res"], o["pnl"])
                 out.update(sym=sym, dir=name, date=date.isoformat(),
                            week="%d-%02d" % date.isocalendar()[:2], conds=conds)
                 trades.append(out)
@@ -292,6 +311,70 @@ def test_condition(ts, cid, weeks, mid_date, rng):
     return res
 
 
+def sl_analysis(ts, weeks, mid_date, rng, boot=1000):
+    """Aynı işlemlerde stop yok ve her stop seviyesi. Fark eşleştirilmiş (aynı işlem), haftalık bootstrap %95."""
+    if not ts:
+        return []
+
+    def pnl(t, sl):
+        return t["pnl"] if sl is None else t["sl"][sl][1]
+
+    def res(t, sl):
+        return t["res"] if sl is None else t["sl"][sl][0]
+
+    out = []
+    n = len(ts)
+    for sl in [None] + P["sl_grid"]:
+        row = {
+            "sl_pct": sl, "n": n,
+            "tp_rate": round(100 * sum(res(t, sl) == "tp" for t in ts) / n, 2),
+            "sl_rate": round(100 * sum(res(t, sl) == "sl" for t in ts) / n, 2),
+            "liq_rate": round(100 * sum(res(t, sl) == "liq" for t in ts) / n, 2),
+            "avg_pnl_usdt": round(sum(pnl(t, sl) for t in ts) / n, 3),
+            "total_pnl_usdt": round(sum(pnl(t, sl) for t in ts), 1),
+            "worst_trade_usdt": round(min(pnl(t, sl) for t in ts), 2),
+        }
+        if sl is not None:
+            per = {w: [0.0, 0] for w in weeks}
+            for t in ts:
+                per[t["week"]][0] += pnl(t, sl) - t["pnl"]
+                per[t["week"]][1] += 1
+            rows = [v for v in per.values() if v[1]]
+            diffs = []
+            for _ in range(boot):
+                q = c = 0
+                for _ in range(len(rows)):
+                    x = rows[rng.randrange(len(rows))]
+                    q += x[0]; c += x[1]
+                if c:
+                    diffs.append(q / c)
+            diffs.sort()
+            h = [sum(pnl(t, sl) - t["pnl"] for t in ts if pred(t["date"])) /
+                 max(1, sum(1 for t in ts if pred(t["date"])))
+                 for pred in (lambda x: x < mid_date, lambda x: x >= mid_date)]
+            d = row["avg_pnl_usdt"] - round(sum(t["pnl"] for t in ts) / n, 3)
+            lo, hi = diffs[int(0.025 * len(diffs))], diffs[int(0.975 * len(diffs)) - 1]
+            row.update(diff_vs_none=round(d, 3), ci_low=round(lo, 3), ci_high=round(hi, 3),
+                       half1=round(h[0], 3), half2=round(h[1], 3),
+                       significant=bool((lo > 0 or hi < 0) and h[0] * d > 0 and h[1] * d > 0))
+        out.append(row)
+    return out
+
+
+def sl_verdict(rows):
+    """En yüksek ortalama PnL'li seçenek; stop yoktan anlamlı farklı değilse 'kanıt yok'."""
+    if not rows:
+        return None
+    none = rows[0]
+    best = max(rows, key=lambda r: r["avg_pnl_usdt"])
+    return {
+        "best_sl_pct": best["sl_pct"], "best_avg_pnl": best["avg_pnl_usdt"],
+        "none_avg_pnl": none["avg_pnl_usdt"],
+        "significant": bool(best["sl_pct"] is not None and best.get("significant")),
+        "sl5_avg_pnl": next((r["avg_pnl_usdt"] for r in rows if r["sl_pct"] == 5), None),
+    }
+
+
 def fmt(v, suffix="", nd=1):
     return "—" if v is None else f"{v:.{nd}f}{suffix}"
 
@@ -337,6 +420,19 @@ def main():
             summary["conditions"].append(r)
     summary["tested"] = sum(1 for c in summary["conditions"] if "lift_pp" in c)
     summary["validated"] = [c for c in summary["conditions"] if c.get("validated")]
+    summary["sl_analysis"] = {"base": {}, "validated": {}}
+    summary["sl_summary"] = {}
+    for dname in ("long", "short"):
+        ts = [t for t in trades if t["dir"] == dname]
+        rows = sl_analysis(ts, weeks, mid, rng)
+        summary["sl_analysis"]["base"][dname] = rows
+        summary["sl_summary"][dname] = sl_verdict(rows)
+    for c in summary["validated"]:
+        ts = [t for t in trades if t["dir"] == c["direction"] and t["conds"].get(c["id"]) is True]
+        key = f"{c['id']}|{c['direction']}"
+        rows = sl_analysis(ts, weeks, mid, rng)
+        summary["sl_analysis"]["validated"][key] = rows
+        summary["sl_summary"][key] = sl_verdict(rows)
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     (DATA_DIR / "backtest_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False))
@@ -397,6 +493,29 @@ def render_report(s):
         L.append(f"{c['id']:<20}{c['direction']:<6}{c['n_true']:>5}{fmt(c['rate_true']):>7}/{fmt(c['rate_false']):<5}"
                  f"{fmt(c['liq_rate_true']):>6}/{fmt(c['liq_rate_false']):<4}{fmt(c['avg_pnl_true'], nd=2):>7}/{fmt(c['avg_pnl_false'], nd=2):<6}"
                  f"{c['pnl_lift']:>+9.2f}{ci:>16}{hv:>13}{'✔' if c['validated'] else '':>3}")
+    L.append("")
+    L.append("5) STOP-LOSS KARŞILAŞTIRMASI (aynı işlemler; fark = stop'lu PnL - stop'suz PnL, %95 haftalık bootstrap)")
+    L.append(f"   Stop piyasa emriyle, %{p['sl_slippage_pct']} kayma payıyla kapanır. 5x'te fiyat %X stop = %5X ROE kaybı.")
+
+    def sl_table(title, rows):
+        L.append(f"  {title}")
+        L.append(f"  {'SL':>6}{'TP%':>7}{'SL%':>7}{'liq%':>7}{'ort.PnL':>9}{'toplam':>9}{'en kötü':>9}{'fark':>8}{'aralık':>18}{'yarılar':>15}")
+        for r in rows:
+            name = "yok" if r["sl_pct"] is None else f"%{r['sl_pct']:g}"
+            extra = ""
+            if r["sl_pct"] is not None:
+                extra = (f"{r['diff_vs_none']:>+8.2f}{'[' + format(r['ci_low'], '+.2f') + ',' + format(r['ci_high'], '+.2f') + ']':>18}"
+                         f"{format(r['half1'], '+.2f') + '/' + format(r['half2'], '+.2f'):>15}{' ✔' if r['significant'] else ''}")
+            L.append(f"  {name:>6}{r['tp_rate']:>7.1f}{r['sl_rate']:>7.1f}{r['liq_rate']:>7.1f}{r['avg_pnl_usdt']:>9.2f}"
+                     f"{r['total_pnl_usdt']:>9.0f}{r['worst_trade_usdt']:>9.2f}{extra}")
+
+    for dname in ("long", "short"):
+        sl_table(f"[{dname}] tüm işlemler", s["sl_analysis"]["base"][dname])
+    for key, rows in s["sl_analysis"]["validated"].items():
+        cid, dname = key.split("|")
+        sl_table(f"[{dname}] sadece '{cid}' doğruyken", rows)
+    L.append("  ✔ = stop'suza göre fark %95 aralıkta sıfırdan farklı ve iki yarıda aynı yönde.")
+    L.append("  Not: sıkı stoplarda (%2-3) aynı mumda TP ve stop sık görülür; stop önce sayıldığı için sonuç kötümserdir.")
     L.append("")
     L.append("NOTLAR")
     L.append("- Mum içi sıra bilinmediği için aynı saatte TP ve ters seviye birlikte görülürse ters seviye sayıldı (kötümser).")

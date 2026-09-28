@@ -43,7 +43,9 @@ Brifingin "veri ne diyor" maddesi sadece geçmiş veride doğrulanmış koşulla
 - `collector/weekly_backtest.sh`: ikisini sırayla çalıştırır (haftalık cron). Sonuçlar bir sonraki saatlik yayında
   `latest.json` → `evidence` alanına ve `market-data` branch'ine (`backtest_report.txt`) girer.
 
-Ortam değişkenleri: `DAYS` (varsayılan 365), `TP_PCT`, `ADV_PCT`, `LIQ_PCT`, `HOLD_H`, `MARGIN`, `LEV`, `FEE_PCT`, `BOOT`, `MIN_N`.
+Rapor ayrıca stop-loss karşılaştırması içerir: aynı işlemler stop'suz ve `SL_GRID` seviyelerinde (varsayılan %2,3,5,8,10 fiyat) simüle edilir; fark eşleştirilmiş haftalık bootstrap ile test edilir.
+
+Ortam değişkenleri: `DAYS` (varsayılan 365), `TP_PCT`, `ADV_PCT`, `LIQ_PCT`, `HOLD_H`, `MARGIN`, `LEV`, `FEE_PCT`, `BOOT`, `MIN_N`, `SL_GRID`, `SL_SLIP`.
 
 Testler: `python3 -m unittest discover -s collector/tests -v`
 

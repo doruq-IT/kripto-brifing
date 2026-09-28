@@ -207,7 +207,33 @@ def load_evidence(now):
         "per_coin": s["per_coin"],
         "tested": s["tested"],
         "validated": s["validated"],
+        "sl_summary": s.get("sl_summary"),
     }
+
+
+def direction_summary(results):
+    """Doğrulanmış kanıtı coin bazında tek bakışta okunur hâle getirir.
+
+    long_favored / short_favored: o yön için PnL'i artıran doğrulanmış koşul aktif.
+    long_weaker / short_weaker: o yön için PnL'i düşüren doğrulanmış koşul aktif.
+    Her coin bir kovada en güçlü (|pnl_lift| en büyük) koşuluyla bir kez yer alır.
+    no_evidence: hiçbir doğrulanmış koşulu aktif olmayan coinler.
+    """
+    out = {"long_favored": [], "short_favored": [], "long_weaker": [], "short_weaker": [], "no_evidence": []}
+    for snap in results:
+        hits = snap.get("evidence_hits") or []
+        if not hits:
+            out["no_evidence"].append(snap["symbol"].replace("USDT", ""))
+            continue
+        for d in ("long", "short"):
+            for effect, bucket in (("olumlu", f"{d}_favored"), ("olumsuz", f"{d}_weaker")):
+                hs = [h for h in hits if h["direction"] == d and h["effect"] == effect]
+                if hs:
+                    h = max(hs, key=lambda x: abs(x.get("pnl_lift") or 0))
+                    out[bucket].append({"coin": snap["symbol"].replace("USDT", ""), **h})
+    for k in ("long_favored", "short_favored", "long_weaker", "short_weaker"):
+        out[k].sort(key=lambda x: -abs(x.get("pnl_lift") or 0))
+    return out
 
 
 def main():
@@ -280,6 +306,7 @@ def main():
         "coins": results,
         "errors": errors,
         "evidence": evidence,
+        "direction_summary": direction_summary(results) if (evidence or {}).get("status") == "ok" else None,
     }
     tmp = DATA_DIR / "latest.json.tmp"
     tmp.write_text(json.dumps(latest, indent=2, ensure_ascii=False))
