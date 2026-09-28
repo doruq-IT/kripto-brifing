@@ -1,6 +1,6 @@
 # Kripto Brifing — Proje Durumu ve Devam Rehberi
 
-> Son güncelleme: 28.09.2026, ~23:00 TSİ
+> Son güncelleme: 28.09.2026, ~23:30 TSİ
 > Bu dosya projeye yeni bir Claude oturumunda kaldığı yerden devam etmek için hazırlandı. Yeni oturumda bu dosyayı ver ve "buradan devam edelim" de.
 
 > ⚠️ Bu repo **herkese açık** (GitHub'dan şifresiz clone edilebiliyor). Bu dosyaya ve repoya IP adresi, SSH portu, token, chat ID, API anahtarı, sunucudaki diğer servislerin ayrıntıları veya güvenlik açıkları **yazılmamalı**.
@@ -338,7 +338,7 @@ tail -40 /var/log/kripto-brifing-backtest.log
 
 ### Routine prompt'u (güncel, birebir — `briefing/routine_prompt.txt` ile aynı)
 
-Son değişiklik (commit `762762f`): 10. maddede USDT değerleri 2 ondalıklı, 9. maddede en yakın seviye kuralı. Okan'a tam metin verildi; routine'e yapıştırıldığı henüz teyit edilmedi.
+Son değişiklik (28.09 gece): 24s değişim yüzdeleri tek kaynaktan (Binance `change_24h_pct`), böylece aynı coin için mesajda iki farklı rakam çıkmaz. 6. maddeye 10:00 ET verileri (JOLTS, tüketici güveni, ISM vb. = 17:00 / 18:00 TSİ) eklendi; "(standart saat)" etiketi sadece saat bulunamadığında yazılır. 8. madde yönden bağımsız olarak tanımlandı. 10. maddede 🔴 coinler "(🔴)" ile işaretlenir; 2 veya daha fazla coin sinyal verirse "tek bir bahis" notu eklenir; madde sınırı 8 satır. Okan'a tam metin verildi; routine'e yapıştırıldığı 29.09 brifinginde teyit edilecek. (Önceki `762762f` değişikliği 28.09 22:39 test mesajında teyit edildi.)
 
 ```
 Okan için kripto sabah brifingi hazırla ve Telegram kanalına gönder. Al/sat tavsiyesi verme.
@@ -358,6 +358,7 @@ VERİ
 - Tarih/saat: `TZ=Europe/Istanbul date` komutuyla al. "Bugün/yarın" ifadelerini buna göre yaz.
 - Coin listesi (11 coin): BTC, ETH, BNB, SOL, XRP, ADA, AVAX, LINK, LTC, BCH, SUI.
 - Fiyatlar: Crypto.com bağlayıcısı (BNB hariç 10 coin; USDT pariteleri; son fiyat, 24s değişim, 24s high/low). BNB Crypto.com'da olmadığı için BNB'nin fiyat, 24s değişim ve high/low değerlerini Binance verisinden (price, change_24h_pct, high_24h, low_24h) al.
+- 24s değişim yüzdeleri: aynı coin için mesajda iki farklı rakam olmasın. 1., 2., 8. ve 11. maddelerdeki tüm 24s değişim yüzdelerini Binance verisindeki change_24h_pct alanından yaz. Binance verisi alınamadıysa Crypto.com 24s değişimini kullan. Fiyat ve 24s high/low için ana kaynak Crypto.com olarak kalır.
 - Binance futures türev verisi: SADECE şu komutla al: curl -s "https://raw.githubusercontent.com/doruq-IT/kripto-brifing/market-data/latest.json" → her coin için funding_rate_pct (funding_interval_h saatlik funding, yüzde), oi_usdt, oi_change_4h_pct, oi_change_24h_pct, global_long_pct (long hesap yüzdesi), top_trader_position_ls_ratio, taker_buy_sell_ratio (1'in altı = satıcı baskın), range_24h_pct. Ek alanlar: dist_ema50_1d_pct ve dist_ema200_1d_pct (fiyatın günlük EMA50/EMA200'e uzaklığı, + = üstünde), trend_4h (yukarı/aşağı), atr_pct_1d (ATR = ortalama günlük hareket, %), liq_distance_in_atr (5x liq mesafesi kaç günlük ortalama hareket ediyor), prev_day_high/prev_day_low (dünün tepe/dibi), high_7d/low_7d (son 7 günün tepe/dibi), funding_pctl_30d, global_long_pct_pctl_30d ve top_trader_ratio_pctl_30d (değerin coinin kendi son 30 günündeki yüzdelik sırası: 90 = son 30 günün en yüksek %10'u), oi_change_7d_pct, btc_trend_up_1d, conditions_true, evidence_hits ve üst düzeyde evidence (haftalık backtest sonucu) ile direction_summary (coin bazında yön özeti). Ek alanlardan biri yoksa veya null ise o bilgiyi yazma, tahmin etme; 7. maddede 24s aralığın 5x liq mesafesine (~%20) oranını, 9. maddede 24s high/low seviyelerini kullan. Bu veri Okan'ın VPS'inden saatlik yayınlanıyor. generated_at alanı 3 saatten eskiyse, dosya alınamazsa veya coins boşsa türev maddesine "Binance verisi alınamadı" yaz ve bu verideki hiçbir rakamı kullanma. Fiyat için ana kaynak Crypto.com olarak kalsın; Crypto.com fiyatı alınamazsa bu dosyadaki price/high_24h/low_24h yedek olarak kullanılabilir. Dosyada olmayan, errors alanında geçen veya ilgili alanı null olan coin için o rakamı "veri yok" yaz, tahmin etme; bu coini 8. maddede gruplama, maddenin sonuna "Veri yok: <coinler>" diye ekle.
 - Korku-açgözlülük endeksi: SADECE şu komutla al: curl -s "https://api.alternative.me/fng/?limit=2" → bugünkü değer, sınıfı ve dünkü değer. Başka site kullanma.
 - Haberler ve makro takvim: web araması. Tek kaynağa dayanan haberi, iddiayı veya rakamı her seferinde "doğrulanmadı" diye işaretle. Rakam uydurma; bulamadığını "alınamadı" yaz.
@@ -370,30 +371,36 @@ DİL (en önemli kural)
 - Belirsiz ifade kullanma: "risk artabilir" deme; kimin için (long mu short mu tutan) ve hangi risk (likidasyon, yeni dip, sert düşüş, sert yükseliş) olduğunu yaz.
 - Türev verisinden çıkarımları "olabilir", "olası" gibi temkinli dille yaz; kesin hüküm kurma.
 
-FORMAT (düz metin, en fazla 11 madde, her madde en fazla 3 satır (10. madde en fazla 6 satır), toplam 3800 karakteri geçme)
+FORMAT (düz metin, en fazla 11 madde, her madde en fazla 3 satır (10. madde en fazla 8 satır), toplam 3800 karakteri geçme)
 - Hiç link, URL, köşeli parantez veya Markdown kullanma. Kaynakları sadece adıyla yaz.
 - Yüzdeleri Türkçe biçimde yaz: -%2,19 / +%0,24. Pozitif değerlerde + işaretini yaz; bu kural funding ve OI değişimi dahil tüm yüzdeler için geçerli (örn: funding +%0,0061).
 - Maddeleri "1.", "2." biçiminde numarala ve her maddeye kısa bir başlık koy (örn: "4. Türev radarı:").
 - 8., 9. ve 10. maddeler işlem önerisi değildir: "al", "sat", "gir", "long aç", "short aç" gibi ifadeler, giriş seviyesi veya hedef fiyat yazma. 🟢 işareti "işlem aç" anlamına gelmez, sadece bugünkü verinin Okan'ın kurallarıyla çelişmediğini gösterir.
 Başlık: "☀️ Sabah Brifingi — GG.AA.YYYY HH:MM TSİ"
 1. Piyasa: BTC ve ETH fiyatı, 24s değişim, gün aralığındaki konum ((fiyat-low)/(high-low)): %0-25 "günün dibine yakın", %25-75 "günün ortasında", %75-100 "günün tepesine yakın". Ardından tek kısa ifadeyle trend: günlük EMA50'nin üstünde/altında ve 4 saatlik trend yukarı/aşağı (dist_ema50_1d_pct, trend_4h).
-2. Düşen/yükselen: en çok düşen ve yükselen 3'er büyük coin (tek satır)
+2. Düşen/yükselen: listedeki 11 coinden en çok düşen ve yükselen 3'er coin, change_24h_pct'ye göre (tek satır)
 3. Piyasa havası: korku-açgözlülük bugünkü değer + sınıf, dünkü değer (Alternative.me). Sınıfı Türkçe yaz: Aşırı Korku, Korku, Nötr, Açgözlülük, Aşırı Açgözlülük
 4. Türev radarı (Binance): BTC ve ETH için funding, 24s açık pozisyon (OI) değişimi, long hesap yüzdesi; funding ve long yüzdesinin yanına 30 günlük yüzdelik sırasını yaz (örn: "funding +%0,0061, son 30 günün ortası"). Yüzdelik 90 ve üstü "son 30 günün en yükseklerinde", 10 ve altı "son 30 günün en düşüklerinde" demektir. Ayrıca listeden en uç sinyali veren 1-2 coin (funding veya long yüzdesi yüzdeliği ≥90 ya da ≤10, en büyük 24s OI değişimi veya long hesap oranı %70 üstü). Anlamlandırma: OI artışı = yeni pozisyon birikiyor; fiyat düşerken sert OI düşüşü = pozisyonlar kapanmış ya da likide olmuş olabilir; long hesap %70 üstü = kalabalık long, ters harekette toplu likidasyon riski.
 5. Haberler: en fazla 2 önemli haber, her biri tek cümle. Tek kaynaklı iddia ve rakamları "doğrulanmadı" diye işaretle
-6. Takvim: bugün ve yarın önemli makro veriler, gün adı ve TSİ saatiyle. Saat bulunamazsa standart saatleri kullan ve yanına "(standart saat)" yaz: ABD verileri (CPI, PCE, istihdam, GSYH, perakende satışlar, haftalık işsizlik başvuruları) 08:30 ABD Doğu saati = ABD yaz saati döneminde (Mart'ın 2. pazarı – Kasım'ın 1. pazarı) 15:30 TSİ, diğer dönemde 16:30 TSİ; FOMC faiz kararı 14:00 ABD Doğu saati = 21:00 / 22:00 TSİ.
+6. Takvim: bugün ve yarın önemli makro veriler, gün adı ve TSİ saatiyle. Saat kaynakta varsa onu yaz ve etiket koyma. Saat bulunamazsa aşağıdaki standart saatleri kullan ve SADECE bu durumda yanına "(standart saat)" yaz. İlk saat ABD yaz saati dönemi (Mart'ın 2. pazarı – Kasım'ın 1. pazarı), ikinci saat diğer dönem içindir:
+   ABD 08:30 Doğu saati verileri (CPI, PCE, istihdam, GSYH, perakende satışlar, haftalık işsizlik başvuruları) = 15:30 / 16:30 TSİ.
+   ABD 10:00 Doğu saati verileri (JOLTS iş açıkları, Conference Board tüketici güveni, Michigan tüketici güveni, ISM imalat ve hizmet PMI, yeni konut satışları) = 17:00 / 18:00 TSİ.
+   FOMC faiz kararı 14:00 Doğu saati = 21:00 / 22:00 TSİ.
 7. Liq radarı: liq_distance_in_atr en düşük 3 coin; her biri için 24s aralık ve liq mesafesinin kaç günlük ortalama hareket (ATR) ettiği. Örn: "SUI günde %14,5 oynadı, ATR %7,8 → liq mesafen yaklaşık 2,5 günlük ortalama hareket kadar"
 8. Kurallarına uygunluk: listedeki 11 coini Binance verisine göre üç gruba ayır, her grupta coin adı ve belirleyici rakam, sonra "→" ile tek cümle açıklama:
    🟢 Kurallarınla çelişmiyor: 24s aralık ≤ %5 (liq mesafenin ≤ %25'i) VE long hesap oranı < %70 VE |OI 24s değişimi| < %10
    🔴 Bugün kurallarına uymuyor: 24s aralık ≥ %10 (liq mesafenin ≥ yarısı) VEYA |OI 24s değişimi| ≥ %15 VEYA 24s fiyat değişimi ≤ -%5
    🟡 Temkinli: geri kalanlar (en belirleyici nedeni yaz: kalabalık long, geniş aralık veya OI hareketi)
+   Bu madde yönden bağımsızdır: 🔴 o gün fiyat hareketinin Okan'ın kurgusu için fazla sert olduğunu gösterir ve long için de short için de geçerlidir.
    Binance verisi alınamadıysa bu maddeye "Binance verisi olmadan filtre uygulanamadı" yaz.
 9. Kritik seviyeler: en fazla 2 tane, BTC/ETH veya 4. maddede öne çıkan coin için dünün tepe/dibi (prev_day_high/low) veya son 7 günün tepe/dibi (high_7d/low_7d) seviyesine dayalı. Aşağı yön için fiyatın altındaki en yakın seviyeyi seç: dünün dibi fiyatın altındaysa onu, değilse son 7 günün dibini kullan. Yukarı yön için de aynısı: dünün tepesi fiyatın üstündeyse onu, değilse son 7 günün tepesini kullan. Biçim: "<coin> <seviye> altına inerse (dünün dibi) → long tutanlar için likidasyon zinciri riski artabilir" veya "<coin> <seviye> üstüne çıkarsa (7 günün tepesi) → short tutanlar için sert yükseliş riski artabilir". Seviyenin ne olduğunu (dünün/7 günün dibi/tepesi) ve kimin için hangi risk olduğunu mutlaka yaz. Yön tahmini veya işlem önerisi yapma.
-10. Yön özeti (geçmiş veriye göre; işlem önerisi değil): SADECE direction_summary ve evidence alanlarını kullan, kendi yorumunla yön üretme. Bu madde en fazla 6 satır olabilir.
+10. Yön özeti (geçmiş veriye göre; işlem önerisi değil): SADECE direction_summary ve evidence alanlarını kullan, kendi yorumunla yön üretme. Bu madde en fazla 8 satır olabilir.
    - direction_summary null ise veya evidence.status "ok" değilse sadece "Yön özeti: backtest verisi yok." yaz.
    - Aksi halde şu satırları bu sırayla yaz. Aynı koşulu paylaşan coinleri tek satırda grupla; koşulu sade Türkçe ve kısa yaz (desc_tr'nin anlamını değiştirme); USDT değerlerini işaretli, 2 ondalıklı ve Türkçe ondalıkla yaz (örn: +2,75; +0,01; -1,48), liq oranını 1 ondalıkla yaz (örn: %0,4):
      "📈 Long lehine: <coinler> → <koşul>, geçmişte long işlem başı <avg_pnl_true> USDT (diğer günler <avg_pnl_false>, liq %<liq_rate_true>)" — long_favored boşsa "📈 Long lehine: kanıt yok"
      "📉 Short lehine: <coinler> → <koşul>, geçmişte short işlem başı <avg_pnl_true> USDT (diğer günler <avg_pnl_false>, liq %<liq_rate_true>)" — short_favored boşsa "📉 Short lehine: kanıt yok"
+     8. maddede 🔴 grubunda olan bir coin 📈 veya 📉 satırında geçiyorsa adının yanına "(🔴)" yaz (örn: "BCH (🔴), SUI (🔴)").
+     📈 ve 📉 satırlarında toplam 2 veya daha fazla coin varsa bu satırlardan hemen sonra tek satır ekle: "Not: <N> coin aynı gün sinyal veriyor; bu coinler birlikte hareket eder, ayrı ayrı fırsat değil tek bir bahis gibidir." İşaretli coin varsa aynı satırın sonuna şunu ekle: " (🔴) = 8. maddede kurallarına uymuyor, hareket sert."
      long_weaker veya short_weaker doluysa: "⚠️ <Long/Short> için zayıf: <coinler> → <koşul>, <avg_pnl_true> USDT"
      "⚪ Belirgin üstünlük yok: <no_evidence coinleri>"
      "Filtresiz ortalama: long <evidence.base.long.avg_pnl_usdt>, short <evidence.base.short.avg_pnl_usdt> USDT/işlem (son <evidence.period.days> gün, 11 coin; geleceği garanti etmez)."
@@ -460,20 +467,23 @@ HTTP 200 ve "ok":true değilse hatayı raporla. Başarılıysa tek cümleyle "g�
 - ✅ `evidence.status = ok`, 2 doğrulanmış koşul; `direction_summary` doğru (28.09 akşamı short lehine: BCH, SUI, ADA, AVAX; long lehine yok)
 - ✅ Haftalık backtest cron'u kurulu (pazar 02:15 UTC); ilk otomatik çalışma 04.10.2026
 - ✅ Routine elle iki kez çalıştırıldı (22:05 ve 22:21 TSİ): Binance kaynaklı rakamların hepsi veriyle birebir, gruplar doğru, 3.800 karakter sınırının altında
-- ⏳ `762762f` prompt'unun routine'e yapıştırıldığının teyidi
+- ✅ `762762f` prompt'u routine'de (22:39 test mesajı: 10. madde 2 ondalıklı, 9. madde en yakın seviye; tüm Binance rakamları ve 8. madde grupları `latest.json` ile birebir)
+- ⏳ 28.09 gece prompt güncellemesinin (tek kaynak 24s değişim, 10:00 ET saatleri, (🔴) işareti, "tek bahis" notu) routine'e yapıştırıldığının teyidi
 - ⏳ İlk otomatik brifing (yeni sistemle): 29.09.2026 08:47 TSİ
 
 ---
 
 ## 13. Sıradaki adımlar / açık konular
 
-1. **29.09 sabahı otomatik brifingi kontrol et.** 9. madde en yakın seviyeyi seçmiş mi, 10. madde 2 ondalıklı mı, tüm rakamlar `latest.json` ile tutuyor mu?
+1. **29.09 sabahı otomatik brifingi kontrol et.** Aynı coin için tek 24s değişim rakamı mı var, 10. maddede (🔴) ve "tek bir bahis" notu doğru mu, 6. maddede "(standart saat)" sadece gerektiğinde mi, tüm rakamlar `latest.json` ile tutuyor mu?
+1a. **Öncelikli yeni iş: canlı kayıt (ileriye dönük test).** Her sabahki `direction_summary` kaydedilsin, 96 saat sonra sonucu otomatik hesaplansın; haftalık rapora karne olarak eklensin. Backtest tek yıl ve tek rejim; sinyalin gerçekten çalıştığını gösterecek tek dürüst ölçü bu. Ardından 2-3 yıllık backtest ve eklemeli kurgu simülasyonu gelir; yeni veri kaynağı (Deribit DVOL vb.) ancak bunlardan sonra.
 2. **04.10 (pazar) ilk otomatik backtest'ten sonra** raporu oku. Doğrulanan koşullar kalıcı mı, yeni koşul çıktı mı, SL sonucu değişti mi?
 3. **Bir hafta izle, küçük düzeltmeleri biriktir,** sonra prompt'u toplu güncelle.
 4. 8. madde filtresi: her hafta raporla birlikte yeniden bak (🟢 long ve %70 kuralı anlamlılığa yakın).
 5. Bilinen küçük pürüzler:
    - Makro takvimde tarih/saat kaynakları bazen çelişiyor (brifing bunu yazıyor).
-   - Crypto.com ve Binance 24 saatlik değişimleri farklı borsalar olduğu için biraz farklı olabilir (normal).
+   - Crypto.com ve Binance 24 saatlik değişimleri farklı borsalar olduğu için biraz farklı olabilir (normal). 28.09 gece güncellemesiyle 24s yüzdeler tek kaynaktan (Binance) yazılıyor.
+   - ABD'de kalıcı yaz saati tasarısı (Sunshine Protection Act) Temsilciler Meclisi'nden geçti, Senato'da bekliyor (28.09 itibarıyla, doğrulanmadı). Yasalaşırsa 6. maddedeki 15:30/16:30 ve 17:00/18:00 kuralları güncellenmeli.
 6. Faz 2 (opsiyonel, sadece açıklayıcı): Deribit DVOL/skew (BTC/ETH), spot ETF akışları, token unlock takvimi, makro (DXY/10Y).
 7. Opsiyonel: TRX'i eklemek; backtest süresini 2 yıla çıkarmak (`DAYS=730`) ve farklı piyasa rejimlerinde test etmek; eklemeli kurguyu (liq'e yakın ekleme) simüle etmek; kod branch'ini main'e merge etmek.
 8. Sunucu güvenliği bu projenin kapsamı dışında; Okan'a ayrıca hatırlatıldı. Ayrıntılar repoya yazılmaz.
