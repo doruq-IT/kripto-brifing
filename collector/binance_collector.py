@@ -80,6 +80,11 @@ def parse_klines(rows, interval_ms, T):
     ]
 
 
+def premium_series(rows, T):
+    """premiumIndexKlines → Series(kapanış zamanı, kapanış %); sadece T'ye kadar kapananlar."""
+    return fx.Series((int(x[0]) + fx.HOUR, float(x[4]) * 100) for x in rows if int(x[0]) + fx.HOUR <= T)
+
+
 def r(v, nd=2):
     return round(v, nd) if isinstance(v, (int, float)) else v
 
@@ -113,6 +118,11 @@ def snapshot(symbol, premium, ticker, T):
     except Exception as e:  # spot verisi opsiyonel
         spot_rows = []
         warnings.append(f"spot: {e}")
+    try:  # prim endeksi: 200 saat (7 günlük z-skoru için)
+        prem_rows = get("/fapi/v1/premiumIndexKlines", {"symbol": symbol, "interval": "1h", "limit": 200})
+    except Exception as e:
+        prem_rows = []
+        warnings.append(f"prim: {e}")
 
     oi_vals = [float(x["sumOpenInterestValue"]) for x in oi_hist]
     oi_now = oi_vals[-1] if oi_vals else None
@@ -122,6 +132,8 @@ def snapshot(symbol, premium, ticker, T):
         "symbol": symbol,
         "price": float(ticker["lastPrice"]),
         "mark_price": float(premium["markPrice"]),
+        "basis_pct": round((float(premium["markPrice"]) / float(premium["indexPrice"]) - 1) * 100, 4)
+        if float(premium.get("indexPrice") or 0) else None,
         "change_24h_pct": float(ticker["priceChangePercent"]),
         "high_24h": high,
         "low_24h": low,
@@ -150,6 +162,7 @@ def snapshot(symbol, premium, ticker, T):
         longp=fx.Series((int(x["timestamp"]), float(x["longAccount"]) * 100) for x in global_ls),
         top=fx.Series((int(x["timestamp"]), float(x["longShortRatio"])) for x in top_ls),
         funding=fx.funding_to_8h(fund_recs) if fund_recs else None,
+        premium=premium_series(prem_rows, T) if prem_rows else None,
     )
     if f is None and k1h:
         warnings.append("özellikler hesaplanamadı (yetersiz mum)")
@@ -183,6 +196,10 @@ def add_feature_fields(snap, f):
         "spot_imbalance_24h": r(f.get("spot_imb_24h"), 3),
         "perp_imbalance_24h": r(f.get("perp_imb_24h"), 3),
         "spot_perp_volume_ratio": r(f.get("spot_perp_vol_ratio")),
+        "premium_pct": r(f.get("premium_pct"), 4),
+        "premium_z7d": r(f.get("premium_z7d")),
+        "bbw_1d_pct": r(f.get("bbw_1d")),
+        "bbw_pctl_90d": r(f.get("bbw_pctl_90d"), 0),
     })
 
 
@@ -192,7 +209,7 @@ def load_evidence(now):
     if not path.exists():
         return None
     try:
-        s = json.loads(path.read_text())
+        s = json.loads(path.read_text(encoding="utf-8"))
         age = (now - datetime.fromisoformat(s["generated_at"])).total_seconds() / 86400
     except Exception as e:
         return {"status": f"okunamadı: {e}"}
@@ -293,7 +310,7 @@ def main():
             for v in validated if conds.get(v["id"])
         ]
 
-    with open(DATA_DIR / "snapshots.jsonl", "a") as fh:
+    with open(DATA_DIR / "snapshots.jsonl", "a", encoding="utf-8") as fh:
         for row in results:
             fh.write(json.dumps({"ts": ts, **row}) + "\n")
 
@@ -309,7 +326,7 @@ def main():
         "direction_summary": direction_summary(results) if (evidence or {}).get("status") == "ok" else None,
     }
     tmp = DATA_DIR / "latest.json.tmp"
-    tmp.write_text(json.dumps(latest, indent=2, ensure_ascii=False))
+    tmp.write_text(json.dumps(latest, indent=2, ensure_ascii=False), encoding="utf-8")
     tmp.replace(DATA_DIR / "latest.json")
 
     for s in results:

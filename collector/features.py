@@ -137,7 +137,18 @@ def funding_interval_h(records):
     return None
 
 
-def compute_features(fut, daily, T, spot=None, oi=None, longp=None, top=None, funding=None):
+def bb_width(closes, n=20):
+    """Bollinger bant genişliği (%): 4 × std / ortalama, son n kapanış. Yetersiz veri → None."""
+    if len(closes) < n:
+        return None
+    w = closes[-n:]
+    m = sum(w) / n
+    sd = (sum((x - m) ** 2 for x in w) / n) ** 0.5
+    return 4 * sd / m * 100 if m else None
+
+
+def compute_features(fut, daily, T, spot=None, oi=None, longp=None, top=None, funding=None,
+                     premium=None):
     """T anındaki özellikler.
 
     fut:   T'den önce kapanmış saatlik futures barları (en az 169; canlı ve backtest son N_1H)
@@ -145,6 +156,7 @@ def compute_features(fut, daily, T, spot=None, oi=None, longp=None, top=None, fu
     spot:  T'den önce kapanmış saatlik spot barları (opsiyonel)
     oi, longp, top: Series (OI USDT, global long hesap %, top trader pozisyon oranı)
     funding: funding_to_8h() çıktısı
+    premium: Series (kapanış zamanı, saatlik prim endeksi kapanışı, %) — perpetual'ın spot endekse primi
     """
     if len(fut) < 169:
         return None
@@ -172,6 +184,12 @@ def compute_features(fut, daily, T, spot=None, oi=None, longp=None, top=None, fu
         f["prev_day_high"], f["prev_day_low"] = daily[-1][H_], daily[-1][L_]
         f["high_7d"] = max(b[H_] for b in daily[-7:])
         f["low_7d"] = min(b[L_] for b in daily[-7:])
+
+    # Sıkışma: bugünkü bant genişliğinin son 90 gündeki yüzdelik sırası
+    f["bbw_1d"] = bb_width(closes)
+    if f["bbw_1d"] is not None and len(closes) >= 110:
+        hist = [bb_width(closes[:len(closes) - k]) for k in range(90)]
+        f["bbw_pctl_90d"] = pctl_rank(hist, f["bbw_1d"])
 
     c4 = [b[C_] for b in resample(fut, 4)]
     f["ema20_4h"], f["ema50_4h"] = ema(c4, 20), ema(c4, 50)
@@ -209,7 +227,36 @@ def compute_features(fut, daily, T, spot=None, oi=None, longp=None, top=None, fu
         f["funding_pctl_30d"] = pctl_rank(funding.between(T - 30 * DAY, T), f["funding_8h"])
         w = funding.between(T - 7 * DAY, T)
         f["funding_avg_7d_8h"] = sum(w) / len(w) if w else None
+
+    if premium is not None:
+        f["premium_pct"] = premium.at(T)
+        w = premium.between(T - 7 * DAY, T)
+        if f["premium_pct"] is not None and len(w) >= 100:
+            m = sum(w) / len(w)
+            sd = (sum((x - m) ** 2 for x in w) / len(w)) ** 0.5
+            f["premium_z7d"] = (f["premium_pct"] - m) / sd if sd else None
     return f
+
+
+def _up_aligned(f):
+    return f["price"] > f["ema50_1d"] and f["price"] > f["ema200_1d"] and f["ema20_4h"] > f["ema50_4h"]
+
+
+def _up_healthy_oi(f):
+    return _up_aligned(f) and f["ret_24h"] > 0 and 0 < f["oi_chg_24h"] < 10
+
+
+def _up_not_crowded(f):
+    return _up_healthy_oi(f) and f["funding_pctl_30d"] < 80 and f["long_pct"] < 70
+
+
+def _down_aligned(f):
+    return f["price"] < f["ema50_1d"] and f["ema20_4h"] < f["ema50_4h"]
+
+
+_TREND = ("ema50_1d", "ema200_1d", "ema20_4h", "ema50_4h")
+_OI = ("ret_24h", "oi_chg_24h")
+_CROWD = ("funding_pctl_30d", "long_pct")
 
 
 def _cond(fn, *keys):
@@ -251,6 +298,17 @@ CONDITIONS = [
     ("btc_trend_up", "BTC günlük EMA50 üstünde", _cond(lambda f: f["btc_trend_up"], "btc_trend_up")),
     ("filter_green", "brifingteki 🟢 filtresi", _cond(lambda f: f["range_24h"] <= 5 and f["long_pct"] < 70 and abs(f["oi_chg_24h"]) < 10, "range_24h", "long_pct", "oi_chg_24h")),
     ("filter_red", "brifingteki 🔴 filtresi", _cond(lambda f: f["range_24h"] >= 10 or abs(f["oi_chg_24h"]) >= 15 or f["ret_24h"] <= -5, "range_24h", "oi_chg_24h", "ret_24h")),
+    # 29.09.2026: saatlik durum motoru için önceden kaydedilmiş adaylar (araştırma: trend/momentum,
+    # kalabalık pozisyon, prim/basis, sıkışma). Test sonuçlarına bakıp tanım DEĞİŞTİRİLMEZ.
+    ("trend_conflict", "günlük trend (EMA50) ile 4 saatlik trend çelişiyor", _cond(lambda f: (f["price"] > f["ema50_1d"]) != (f["ema20_4h"] > f["ema50_4h"]), "ema50_1d", "ema20_4h", "ema50_4h")),
+    ("squeeze", "oynaklık sıkışması (bant genişliği 90 günün en düşük %10'unda)", _cond(lambda f: f["bbw_pctl_90d"] <= 10, "bbw_pctl_90d")),
+    ("premium_high", "vadeli prim 7 günlük ortalamanın 2 standart sapma üstünde", _cond(lambda f: f["premium_z7d"] >= 2, "premium_z7d")),
+    ("up_aligned", "fiyat günlük EMA50 ve EMA200 üstünde, 4 saatlik trend yukarı", _cond(_up_aligned, *_TREND)),
+    ("up_healthy_oi", "yukarı trend + fiyat ve açık pozisyon ılımlı artıyor (OI 0 ile +%10)", _cond(_up_healthy_oi, *_TREND, *_OI)),
+    ("up_not_crowded", "yukarı trend + ılımlı OI artışı + kalabalık yok (funding < 80. yüzdelik, long < %70)", _cond(_up_not_crowded, *_TREND, *_OI, *_CROWD)),
+    ("up_btc_confirm", "kalabalıksız yukarı trend + BTC de günlük EMA50 üstünde", _cond(lambda f: _up_not_crowded(f) and f["btc_trend_up"], *_TREND, *_OI, *_CROWD, "btc_trend_up")),
+    ("down_aligned", "fiyat günlük EMA50 altında, 4 saatlik trend aşağı", _cond(_down_aligned, "ema50_1d", "ema20_4h", "ema50_4h")),
+    ("down_shorts_building", "aşağı trend + fiyat düşerken açık pozisyon ≥ +%5", _cond(lambda f: _down_aligned(f) and f["ret_24h"] < 0 and f["oi_chg_24h"] >= 5, "ema50_1d", "ema20_4h", "ema50_4h", *_OI)),
 ]
 CONDITION_DESC = {cid: desc for cid, desc, _ in CONDITIONS}
 

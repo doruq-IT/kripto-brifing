@@ -66,6 +66,69 @@ class TestIndicators(unittest.TestCase):
         self.assertEqual(fx.funding_interval_h(recs), 4)
 
 
+class TestNewFeatures(unittest.TestCase):
+    """29.09.2026 adayları: prim z-skoru, sıkışma ve bileşik koşullar."""
+
+    def test_bb_width(self):
+        self.assertIsNone(fx.bb_width([1.0] * 19))
+        self.assertEqual(fx.bb_width([10.0] * 20), 0)
+        # [9, 11] × 10: std 1, ortalama 10 → 4 × 1 / 10 = %40
+        self.assertAlmostEqual(fx.bb_width([9.0, 11.0] * 10), 40.0)
+
+    def features(self, **kw):
+        base = {"price": 100, "ema50_1d": 90, "ema200_1d": 80, "ema20_4h": 101, "ema50_4h": 99,
+                "ret_24h": 1.0, "oi_chg_24h": 5.0, "funding_pctl_30d": 50, "long_pct": 60,
+                "btc_trend_up": True, "bbw_pctl_90d": 50, "premium_z7d": 0.5}
+        base.update(kw)
+        return fx.evaluate_conditions(base)
+
+    def test_up_chain(self):
+        c = self.features()
+        for k in ("up_aligned", "up_healthy_oi", "up_not_crowded", "up_btc_confirm"):
+            self.assertTrue(c[k], k)
+        self.assertFalse(c["down_aligned"])
+        self.assertFalse(c["trend_conflict"])
+        # zincirin her halkası bir öncekini gerektirir
+        self.assertFalse(self.features(oi_chg_24h=12)["up_healthy_oi"])
+        self.assertTrue(self.features(long_pct=72)["up_healthy_oi"])
+        self.assertFalse(self.features(long_pct=72)["up_not_crowded"])
+        self.assertFalse(self.features(btc_trend_up=False)["up_btc_confirm"])
+        self.assertFalse(self.features(ema200_1d=120)["up_aligned"])
+
+    def test_down_and_conflict(self):
+        c = self.features(price=85, ema20_4h=98, ret_24h=-2, oi_chg_24h=6)
+        self.assertTrue(c["down_aligned"])
+        self.assertTrue(c["down_shorts_building"])
+        self.assertFalse(c["trend_conflict"])
+        self.assertTrue(self.features(price=85)["trend_conflict"])  # günlük aşağı, 4s yukarı
+
+    def test_squeeze_premium_and_missing(self):
+        self.assertTrue(self.features(bbw_pctl_90d=8)["squeeze"])
+        self.assertTrue(self.features(premium_z7d=2.3)["premium_high"])
+        c = self.features(premium_z7d=None, oi_chg_24h=None)
+        self.assertIsNone(c["premium_high"])
+        self.assertIsNone(c["up_healthy_oi"])
+        self.assertTrue(c["up_aligned"])  # OI'den bağımsız
+
+    def test_premium_z_and_squeeze_from_bars(self):
+        hist = make_history(300, 7)
+        fut, prem = hist[0], hist[4]
+        T = T0 + 290 * DAY + 5 * HOUR
+        i = next(k for k, b in enumerate(fut) if b[0] == T)
+        daily = [b for b in fx.resample(fut, 24) if b[0] + DAY <= T]
+        ps = fx.Series((t + HOUR, v * 100) for t, v in prem)
+        f = fx.compute_features(fut[i - fx.N_1H:i], daily[-fx.N_1D:], T, premium=ps)
+        w = [v * 100 for t, v in prem if T - 7 * DAY < t + HOUR <= T]
+        m = sum(w) / len(w)
+        sd = (sum((x - m) ** 2 for x in w) / len(w)) ** 0.5
+        self.assertAlmostEqual(f["premium_z7d"], (w[-1] - m) / sd)
+        self.assertTrue(0 <= f["bbw_pctl_90d"] <= 100)
+        # yetersiz prim geçmişi → z-skoru yok
+        f2 = fx.compute_features(fut[i - fx.N_1H:i], daily[-fx.N_1D:], T,
+                                 premium=fx.Series([(T, 0.01)]))
+        self.assertIsNone(f2.get("premium_z7d"))
+
+
 def make_history(n_days, seed, plant=False):
     """Sentetik saatlik futures/spot mumları, funding (8s) ve metrics.
 
@@ -84,8 +147,8 @@ def make_history(n_days, seed, plant=False):
             if plant and k == 0 and rate < 0:
                 for h in range(6, 30):
                     drift[dday * 24 + h] += 0.0012
-    fut, spot, met = [], [], []
-    p, oi, lp = 100.0, 1e9, 60.0
+    fut, spot, met, prem = [], [], [], []
+    p, oi, lp, pr = 100.0, 1e9, 60.0, 0.0
     for i in range(n):
         t = T0 + i * HOUR
         o = p
@@ -98,11 +161,13 @@ def make_history(n_days, seed, plant=False):
         oi *= math.exp(rng.gauss(0, 0.01))
         lp = min(80, max(40, lp + rng.gauss(0, 0.5)))
         met.append((t + HOUR - 5 * 60_000, oi, lp, rng.uniform(0.8, 2.5)))
-    return fut, spot, funding, met
+        pr = 0.9 * pr + rng.gauss(0, 0.0001)
+        prem.append((t, pr))
+    return fut, spot, funding, met, prem
 
 
 def write_history(root, sym, hist):
-    fut, spot, funding, met = hist
+    fut, spot, funding, met, prem = hist
     d = Path(root) / sym
     d.mkdir(parents=True)
     for name, rows, hdr in (
@@ -110,6 +175,7 @@ def write_history(root, sym, hist):
         ("spot_1h.csv", spot, ["open_time", "open", "high", "low", "close", "quote_volume", "taker_buy_quote"]),
         ("funding.csv", funding, ["funding_time", "funding_rate"]),
         ("metrics.csv", met, ["t", "oi_usdt", "long_pct", "top_pos_ratio"]),
+        ("premium_1h.csv", prem, ["open_time", "close"]),
     ):
         with open(d / name, "w", newline="") as f:
             w = csv.writer(f)
@@ -267,7 +333,8 @@ class TestBacktestEndToEnd(unittest.TestCase):
             ids = {(c["id"], c["direction"]) for c in s["validated"]}
             self.assertIn(("funding_negative", "long"), ids)
             c = next(c for c in s["conditions"] if c["id"] == "funding_negative" and c["direction"] == "long")
-            self.assertGreater(c["lift_pp"], 10)
+            # etki 06:00-30:00 arasına gömülü; 4 saatlik girişlerde kısmen yakalanır
+            self.assertGreater(c["lift_pp"], 5)
             self.assertGreater(c["pnl_lift"], 0)
             self.assertEqual(c["effect"], "olumlu")
             self.assertGreater(s["base"]["long"]["n"], 500)
@@ -278,6 +345,19 @@ class TestBacktestEndToEnd(unittest.TestCase):
             self.assertEqual([r["sl_pct"] for r in rows], [None, 2, 3, 5, 8, 10])
             self.assertTrue(all(r["liq_rate"] == 0 for r in rows[1:]))  # stop varken liq olmaz
             self.assertIn("long", s["sl_summary"])
+
+    def test_step_hours_and_ci(self):
+        import backtest as bt
+        with tempfile.TemporaryDirectory() as tmp:
+            s = run_backtest(tmp, {"BTCUSDT": make_history(400, 8)}, boot=50)
+        self.assertEqual(s["params"]["step_h"], 4)
+        self.assertEqual(s["params"]["min_n"], 360)
+        self.assertAlmostEqual(s["params"]["ci_level_pct"], round(100 - 5 / (2 * len(fx.CONDITIONS)), 3))
+        n_days = s["period"]["days"]
+        self.assertAlmostEqual(s["base"]["long"]["n"] / n_days, 6, delta=0.1)  # günde 6 giriş
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(bt.P, {"step_h": 24}):
+            s24 = run_backtest(tmp, {"BTCUSDT": make_history(400, 8)}, boot=50)
+        self.assertAlmostEqual(s24["base"]["long"]["n"] / s24["period"]["days"], 1, delta=0.05)
 
     def test_noise_produces_no_false_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -290,8 +370,9 @@ class TestCollector(unittest.TestCase):
     """Canlı toplayıcıyı sahte API cevaplarıyla uçtan uca çalıştırır."""
 
     def fake_api(self, hist, T):
-        fut, spot, funding, met = hist
+        fut, spot, funding, met, prem = hist
         fut = [b for b in fut if b[0] < T + HOUR]  # son (oluşan) mum dahil
+        prem = [x for x in prem if x[0] < T + HOUR]
         daily = fx.resample(fut, 24)
 
         def kl(bars):
@@ -302,7 +383,9 @@ class TestCollector(unittest.TestCase):
             p = params or {}
             if path == "/fapi/v1/premiumIndex":
                 return [{"symbol": "BTCUSDT", "markPrice": str(fut[-1][4]), "lastFundingRate": "0.0001",
-                         "nextFundingTime": T + 3 * HOUR}]
+                         "indexPrice": str(fut[-1][4] * 0.999), "nextFundingTime": T + 3 * HOUR}]
+            if path == "/fapi/v1/premiumIndexKlines":
+                return [[t, "0", "0", "0", str(v), "0", t + HOUR - 1] for t, v in prem[-p["limit"]:]]
             if path == "/fapi/v1/ticker/24hr":
                 return [{"symbol": "BTCUSDT", "lastPrice": str(fut[-1][4]), "priceChangePercent": "1.5",
                          "highPrice": "110", "lowPrice": "100", "quoteVolume": "1e9"}]
@@ -355,9 +438,12 @@ class TestCollector(unittest.TestCase):
         self.assertEqual(latest["errors"], {})
         c = latest["coins"][0]
         for k in ("atr_pct_1d", "ema50_1d", "funding_pctl_30d", "global_long_pct_pctl_30d",
-                  "oi_change_7d_pct", "spot_imbalance_24h", "prev_day_high", "conditions_true"):
+                  "oi_change_7d_pct", "spot_imbalance_24h", "prev_day_high", "conditions_true",
+                  "premium_pct", "premium_z7d", "bbw_pctl_90d", "basis_pct"):
             self.assertIsNotNone(c.get(k), k)
         self.assertEqual(c["funding_interval_h"], 8)
+        self.assertAlmostEqual(c["basis_pct"], 0.1001, places=3)
+        self.assertEqual(c.get("warnings"), None)
         self.assertEqual(latest["evidence"]["status"], "ok")
         self.assertIsInstance(latest["btc_trend_up_1d"], bool)
         self.assertEqual(bool(c["evidence_hits"]), "trend_up_1d" in c["conditions_true"])
@@ -391,8 +477,8 @@ class TestCollector(unittest.TestCase):
         js = s["spot_idx"][T]
         f_bt = fx.compute_features(s["fut"][iT - fx.N_1H:iT], s["daily"][jd - fx.N_1D:jd], T,
                                    spot=s["spot"][js - 30:js], oi=s["oi"], longp=s["longp"],
-                                   top=s["top"], funding=s["funding"])
-        for k in ("ret_24h", "range_24h", "ema50_1d", "ema200_1d", "atr_pct_1d", "ema20_4h",
+                                   top=s["top"], funding=s["funding"], premium=s["premium"])
+        for k in ("premium_pct", "premium_z7d", "bbw_1d", "bbw_pctl_90d", "ret_24h", "range_24h", "ema50_1d", "ema200_1d", "atr_pct_1d", "ema20_4h",
                   "oi_chg_24h", "long_pct", "long_pct_pctl_30d", "top_ratio_pctl_30d",
                   "funding_8h", "funding_pctl_30d", "spot_imb_24h", "perp_taker_ratio_24h"):
             self.assertIsNotNone(f_bt.get(k), k)

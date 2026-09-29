@@ -5,10 +5,11 @@ Kaynaklar:
   - Futures 1h mum:   /fapi/v1/klines           (canlı toplayıcıyla aynı uç)
   - Spot 1h mum:      /api/v3/klines
   - Funding geçmişi:  /fapi/v1/fundingRate
+  - Prim endeksi 1h:  /fapi/v1/premiumIndexKlines (perpetual'ın spot endekse primi)
   - OI + long/short:  data.binance.vision günlük "metrics" arşivi
                       (API bu verileri sadece son 30 gün için veriyor)
 
-Çıktı: data/history/<SYMBOL>/{fut_1h,spot_1h,funding,metrics}.csv
+Çıktı: data/history/<SYMBOL>/{fut_1h,spot_1h,funding,premium_1h,metrics}.csv
 Tekrar çalıştırılırsa sadece eksik kısmı indirir.
 
 Ortam değişkenleri: SYMBOLS, DAYS (varsayılan 365), HIST_DIR
@@ -67,13 +68,13 @@ def http(url, retries=4):
 def read_csv(path):
     if not path.exists():
         return []
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return list(csv.reader(f))[1:]
 
 
 def write_csv(path, header, rows):
     tmp = path.with_suffix(".tmp")
-    with open(tmp, "w", newline="") as f:
+    with open(tmp, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(header)
         w.writerows(rows)
@@ -101,6 +102,29 @@ def fetch_klines(base, path, symbol, start_ms, end_ms, out):
         t = nt
         time.sleep(0.25)  # ağırlık limiti: 1000'lik istek = 5 ağırlık, dakikada 2400
     write_csv(out, header, [rows[k] for k in sorted(rows)])
+    return len(rows) - n0, len(rows)
+
+
+def fetch_premium(symbol, start_ms, end_ms, out):
+    """Saatlik prim endeksi mumları (sadece açılış zamanı ve kapanış), mevcut dosyaya ekler."""
+    rows = {int(x[0]): x for x in read_csv(out)}
+    t = max(rows) + HOUR if rows else start_ms
+    n0 = len(rows)
+    while t + HOUR <= end_ms:
+        q = urllib.parse.urlencode({"symbol": symbol, "interval": "1h", "startTime": t, "limit": 1000})
+        data = json.loads(http(f"{FAPI}/fapi/v1/premiumIndexKlines?{q}") or b"[]")
+        if not data:
+            break
+        for k in data:
+            ot = int(k[0])
+            if ot + HOUR <= end_ms:
+                rows[ot] = [ot, k[4]]
+        nt = int(data[-1][0]) + HOUR
+        if nt <= t:
+            break
+        t = nt
+        time.sleep(0.25)
+    write_csv(out, ["open_time", "close"], [rows[k] for k in sorted(rows)])
     return len(rows) - n0, len(rows)
 
 
@@ -227,9 +251,15 @@ def main():
                 b = ("HATA", 0)
                 print(f"{sym:<9} spot alınamadı: {e}", file=sys.stderr)
             c = fetch_funding(sym, f_start, now_ms, d / "funding.csv")
+            try:
+                pr = fetch_premium(sym, f_start, now_ms, d / "premium_1h.csv")
+            except Exception as e:  # prim opsiyonel: prim koşulu test edilemez, gerisi etkilenmez
+                pr = ("HATA", 0)
+                print(f"{sym:<9} prim alınamadı: {e}", file=sys.stderr)
             m = fetch_metrics(sym, DAYS + METRIC_WARMUP, d / "metrics_raw", d / "metrics.csv")
             print(f"{sym:<9} futures +{a[0]} (={a[1]}) | spot +{b[0]} (={b[1]}) | "
-                  f"funding +{c[0]} (={c[1]}) | metrics: yeni gün {m[0]}, bulunamayan {m[1]}, "
+                  f"funding +{c[0]} (={c[1]}) | prim +{pr[0]} (={pr[1]}) | "
+                  f"metrics: yeni gün {m[0]}, bulunamayan {m[1]}, "
                   f"bozuk {m[2]}, saatlik satır {m[3]}")
         except Exception as e:
             failed.append(sym)

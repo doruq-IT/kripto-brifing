@@ -2,9 +2,11 @@
 """Okan'ın işlem kurgusunu geçmiş veride simüle eder ve koşulların etkisini ölçer.
 
 Kurgu (ortam değişkenleriyle değiştirilebilir):
-  - Her gün, her coin için FEATURE_HOUR (05:00 UTC) itibarıyla özellikler hesaplanır
-    (brifingin okuduğu veriyle aynı an), ENTRY_HOUR (06:00 UTC) mumunun açılışında
-    long ve short için ayrı ayrı sanal işlem açılır.
+  - Her coin için STEP_H (4) saatte bir özellikler hesaplanır; saatler FEATURE_HOUR'dan
+    (05:00 UTC, brifingin okuduğu an) başlar: 01, 05, 09, 13, 17, 21 UTC. Bir sonraki
+    saatin açılışında (ENTRY_HOUR − FEATURE_HOUR = 1 saat sonra) long ve short için ayrı
+    ayrı sanal işlem açılır. Saatlik durum motoru her saat çalıştığı için tek sabah
+    saati yerine günün farklı saatleri örneklenir. STEP_H=24 eski günlük kurguyu verir.
   - TP: +%2 fiyat. SL yok. Liq: -%19,5 (5x isolated). En fazla HOLD_H (96) saat.
   - Aynı saatlik mumda hem TP hem ters seviye görülürse ters seviye önce sayılır
     (muhafazakâr varsayım; mum içi sıra bilinmiyor).
@@ -19,9 +21,11 @@ Kurgu (ortam değişkenleriyle değiştirilebilir):
     başına yanıltıcıdır (oynaklık iki yönde de TP'yi hızlandırır ama liq'i artırır).
   - Güven aralığı: haftalık blok bootstrap (coinler aynı gün, işlemler ardışık
     günlerde birbirine bağımlı olduğu için hafta bazında yeniden örnekleme).
-  - Çoklu test: ~58 test yapıldığı için %99,8 aralık kullanılır (Bonferroni'ye yakın).
+  - Çoklu test: aralık düzeyi test sayısından hesaplanır (Bonferroni): 100 − 5/test sayısı.
+    38 koşul × 2 yön = 76 test → %99,93. Uç kuyruğu sağlıklı ölçmek için BOOT 10.000.
   - "Doğrulanmış" = PnL farkının aralığı sıfırı içermiyor + iki yarıda da aynı yön
-    + koşulun doğru olduğu en az MIN_N işlem ve 30 farklı gün.
+    + koşulun doğru olduğu en az MIN_N işlem (günlük 60'ın STEP_H'ye göre ölçeklisi)
+    ve 30 farklı gün.
 
 Çıktı: data/backtest_summary.json (collector okur), data/backtest_report.txt
 """
@@ -53,14 +57,17 @@ P = {
     "fee_pct": float(os.getenv("FEE_PCT", "0.05")),
     "feature_hour_utc": int(os.getenv("FEATURE_HOUR", "5")),
     "entry_hour_utc": int(os.getenv("ENTRY_HOUR", "6")),
+    "step_h": int(os.getenv("STEP_H", "4")),
     "days": int(os.getenv("DAYS", "365")),
-    "bootstrap": int(os.getenv("BOOT", "2000")),
-    "ci_level_pct": 99.8,
-    "min_n": int(os.getenv("MIN_N", "60")),
+    "bootstrap": int(os.getenv("BOOT", "10000")),
+    # Bonferroni: 100 − 5 / test sayısı (koşul × 2 yön); CI_LEVEL ile sabitlenebilir
+    "ci_level_pct": float(os.getenv("CI_LEVEL") or round(100 - 5 / (2 * len(fx.CONDITIONS)), 3)),
+    "min_n": int(os.getenv("MIN_N", "0")),  # 0 → 60 × 24 / STEP_H (aşağıda)
     # SL karşılaştırması: fiyat yüzdesi (5x'te ROE = 5 katı). Stop piyasa emriyle kapanır → kayma payı.
     "sl_grid": [float(x) for x in os.getenv("SL_GRID", "2,3,5,8,10").split(",") if x],
     "sl_slippage_pct": float(os.getenv("SL_SLIP", "0.05")),
 }
+P["min_n"] = P["min_n"] or 60 * 24 // P["step_h"]
 HIST_DIR = Path(os.getenv("HIST_DIR", HERE / "data" / "history"))
 DATA_DIR = Path(os.getenv("DATA_DIR", HERE / "data"))
 
@@ -68,7 +75,7 @@ DATA_DIR = Path(os.getenv("DATA_DIR", HERE / "data"))
 def read_rows(path):
     if not path.exists():
         return []
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return list(csv.reader(f))[1:]
 
 
@@ -78,6 +85,7 @@ def load_symbol(sym):
     spot = [(int(r[0]), *map(float, r[1:7])) for r in read_rows(d / "spot_1h.csv")]
     fund_raw = [(int(r[0]), float(r[1])) for r in read_rows(d / "funding.csv")]
     met = [(int(r[0]), float(r[1]), float(r[2]), float(r[3])) for r in read_rows(d / "metrics.csv")]
+    prem = [(int(r[0]) + HOUR, float(r[1]) * 100) for r in read_rows(d / "premium_1h.csv")]
     daily = fx.resample(fut, 24)
     return {
         "fut": fut,
@@ -92,6 +100,7 @@ def load_symbol(sym):
         "oi": fx.Series((m[0], m[1]) for m in met) if met else None,
         "longp": fx.Series((m[0], m[2]) for m in met) if met else None,
         "top": fx.Series((m[0], m[3]) for m in met) if met else None,
+        "premium": fx.Series(prem) if prem else None,
     }
 
 
@@ -163,10 +172,13 @@ def build_trades(data):
         first_day = fut[0][0] // DAY * DAY + 42 * DAY  # 1000 saatlik pencere için
         last_day = fut[-1][0] // DAY * DAY
         start_day = max(first_day, last_day - P["days"] * DAY)
-        for day in range(start_day, last_day + DAY, DAY):
-            T = day + P["feature_hour_utc"] * HOUR
+        step = P["step_h"]
+        hours = [h for h in range(24) if (h - P["feature_hour_utc"]) % step == 0]
+        entry_off = (P["entry_hour_utc"] - P["feature_hour_utc"]) * HOUR
+        for T in (day + h * HOUR for day in range(start_day, last_day + DAY, DAY) for h in hours):
+            day = T // DAY * DAY
             iT = s["fut_idx"].get(T)
-            iE = s["fut_idx"].get(day + P["entry_hour_utc"] * HOUR)
+            iE = s["fut_idx"].get(T + entry_off)
             if iT is None or iE is None:
                 continue
             jd = bisect_left(daily_t, T - DAY + 1)  # t + DAY <= T olan günlük barlar
@@ -175,6 +187,7 @@ def build_trades(data):
                 fut[max(0, iT - fx.N_1H):iT], daily[max(0, jd - fx.N_1D):jd], T,
                 spot=s["spot"][max(0, js - 30):js] if js else None,
                 oi=s["oi"], longp=s["longp"], top=s["top"], funding=s["funding"],
+                premium=s.get("premium"),
             )
             if f is None:
                 continue
@@ -435,9 +448,10 @@ def main():
         summary["sl_summary"][key] = sl_verdict(rows)
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    (DATA_DIR / "backtest_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False))
+    (DATA_DIR / "backtest_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False),
+                                                    encoding="utf-8")
     report = render_report(summary)
-    (DATA_DIR / "backtest_report.txt").write_text(report)
+    (DATA_DIR / "backtest_report.txt").write_text(report, encoding="utf-8")
     print(report)
     return 0
 
@@ -448,11 +462,13 @@ def render_report(s):
     L.append(f"BACKTEST RAPORU — {s['generated_at']}")
     L.append(f"Dönem: {s['period']['start']} → {s['period']['end']} "
              f"({s['period']['days']} gün, {s['period']['weeks']} hafta), coinler: {', '.join(s['coins'])}")
-    L.append(f"Kurgu: giriş {p['entry_hour_utc']:02d}:00 UTC, TP +%{p['tp_pct']}, ters bölge %{p['adverse_pct']}, "
+    hrs = [(h + p['entry_hour_utc'] - p['feature_hour_utc']) % 24 for h in range(24)
+           if (h - p['feature_hour_utc']) % p.get('step_h', 24) == 0]
+    L.append(f"Kurgu: giriş {', '.join(f'{h:02d}' for h in hrs)}:00 UTC, TP +%{p['tp_pct']}, ters bölge %{p['adverse_pct']}, "
              f"liq %{p['liq_pct']}, en fazla {p['hold_h']} saat, {p['leverage']:.0f}x, marj {p['margin_usdt']:.0f} USDT, "
              f"ücret %{p['fee_pct']}×2, funding dahil, eklemesiz.")
     L.append("")
-    L.append("1) HER GÜN HER COİNDE AYNI İŞLEM AÇILSAYDI (filtre yok)")
+    L.append(f"1) HER {p.get('step_h', 24)} SAATTE HER COİNDE AYNI İŞLEM AÇILSAYDI (filtre yok)")
     hdr = f"{'':<10}{'n':>6}{'temiz%':>8}{'TP%':>7}{'liq%':>7}{'-%10%':>7}{'süre%':>7}{'ort.PnL':>9}{'toplam':>9}{'başabaş TP%':>12}"
     L.append(hdr)
     for dname in ("long", "short"):
