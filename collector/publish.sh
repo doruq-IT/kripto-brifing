@@ -10,6 +10,8 @@ DEPLOY_KEY="${DEPLOY_KEY:-$HOME/.ssh/kripto_brifing_deploy}"
 REMOTE="${REMOTE:-git@github.com:doruq-IT/kripto-brifing.git}"
 
 /usr/bin/python3 "$REPO_DIR/collector/binance_collector.py"
+# Saatlik risk durumu (değişiklik varsa Telegram). Hata yayını durdurmaz.
+/usr/bin/python3 "$REPO_DIR/collector/state_engine.py" || echo "UYARI: durum motoru hata verdi"
 
 rm -rf "$PUB_DIR"
 mkdir -p "$PUB_DIR"

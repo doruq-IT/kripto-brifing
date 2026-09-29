@@ -6,6 +6,7 @@ import csv
 import io
 import json
 import math
+import os
 import random
 import sys
 import tempfile
@@ -483,6 +484,167 @@ class TestCollector(unittest.TestCase):
                   "funding_8h", "funding_pctl_30d", "spot_imb_24h", "perp_taker_ratio_24h"):
             self.assertIsNotNone(f_bt.get(k), k)
             self.assertAlmostEqual(f_live[k], f_bt[k], places=4, msg=k)
+
+
+class TestStateEngine(unittest.TestCase):
+    """Saatlik risk durumu: seviye kuralları, histerezis, veri kesintisi, mesaj."""
+
+    def setUp(self):
+        import state_engine
+        from datetime import datetime, timezone
+        self.se = state_engine
+        self.now = datetime(2026, 9, 29, 11, 31, tzinfo=timezone.utc)
+
+    def coin(self, sym, rng=3.0, lp=60.0, oi=2.0, chg=0.5, conds=()):
+        return {"symbol": sym + "USDT", "range_24h_pct": rng, "global_long_pct": lp,
+                "oi_change_24h_pct": oi, "change_24h_pct": chg, "conditions_true": list(conds)}
+
+    def latest(self, *coins, age_h=0.0):
+        from datetime import timedelta
+        return {"generated_at": (self.now - timedelta(hours=age_h)).isoformat(),
+                "feature_time": "2026-09-29T11:00+00:00", "coins": list(coins)}
+
+    def test_assess_matches_briefing_rules(self):
+        a = self.se.assess
+        self.assertEqual(a(self.coin("BTC"))[0], "🟢")
+        self.assertEqual(a(self.coin("BTC", lp=70))[0], "🟡")
+        self.assertEqual(a(self.coin("BTC", rng=6))[0], "🟡")
+        self.assertEqual(a(self.coin("BTC", oi=-12))[0], "🟡")
+        self.assertEqual(a(self.coin("BTC", rng=10))[0], "🔴")
+        self.assertEqual(a(self.coin("BTC", oi=15))[0], "🔴")
+        lvl, why, _ = a(self.coin("BTC", chg=-5.2, rng=6))
+        self.assertEqual(lvl, "🔴")
+        self.assertIn("24s -%5,2", why)
+        self.assertEqual(a(self.coin("BTC", conds=["long_crowd_70", "squeeze"]))[2], ["👥", "🌀"])
+        self.assertIsNone(a(self.coin("BTC", oi=None)))
+
+    def test_first_run_reports_everything(self):
+        st, msg = self.se.step(None, self.latest(self.coin("BTC"), self.coin("SUI", rng=12)), self.now)
+        self.assertIn("İlk durum raporu", msg)
+        self.assertIn("🟢 BTC", msg)
+        self.assertIn("🔴 SUI (aralık %12,0)", msg)
+        self.assertIn("14:31 TSİ (veri 14:00)", msg)
+        self.assertIn("işlem önerisi değil", msg)
+        self.assertEqual(st["coins"]["SUI"]["level"], "🔴")
+
+    def test_no_change_no_message(self):
+        st, _ = self.se.step(None, self.latest(self.coin("BTC")), self.now)
+        st2, msg = self.se.step(st, self.latest(self.coin("BTC", rng=4)), self.now)
+        self.assertIsNone(msg)
+        self.assertEqual(st2["coins"]["BTC"]["level"], "🟢")
+
+    def test_worsening_is_immediate_improvement_needs_two_hours(self):
+        st, _ = self.se.step(None, self.latest(self.coin("SOL")), self.now)
+        st, msg = self.se.step(st, self.latest(self.coin("SOL", lp=71.2, conds=["long_crowd_70"])), self.now)
+        self.assertIn("• SOL 🟢 → 🟡 (long %71,2 👥)", msg)
+        self.assertIn("👥 kalabalık long", msg)
+        st, msg = self.se.step(st, self.latest(self.coin("SOL")), self.now)  # 1. saat iyi
+        self.assertIsNone(msg)
+        self.assertEqual(st["coins"]["SOL"]["level"], "🟡")
+        self.assertEqual(st["coins"]["SOL"]["pending_n"], 1)
+        st, msg = self.se.step(st, self.latest(self.coin("SOL")), self.now)  # 2. saat iyi
+        self.assertIn("• SOL 🟡 → 🟢", msg)
+        self.assertEqual(st["coins"]["SOL"]["level"], "🟢")
+
+    def test_flapping_improvement_resets(self):
+        st, _ = self.se.step(None, self.latest(self.coin("ETH", rng=6)), self.now)
+        st, _ = self.se.step(st, self.latest(self.coin("ETH")), self.now)          # iyi (1)
+        st, msg = self.se.step(st, self.latest(self.coin("ETH", rng=6)), self.now)  # tekrar 🟡
+        self.assertIsNone(msg)
+        self.assertEqual(st["coins"]["ETH"]["pending_n"], 0)
+        st, msg = self.se.step(st, self.latest(self.coin("ETH")), self.now)        # iyi (1) yeniden
+        self.assertIsNone(msg)
+
+    def test_stale_data_warns_once_then_recovers(self):
+        st, _ = self.se.step(None, self.latest(self.coin("BTC")), self.now)
+        st, msg = self.se.step(st, self.latest(self.coin("BTC"), age_h=3), self.now)
+        self.assertIn("güncellenemedi", msg)
+        self.assertFalse(st["data_ok"])
+        st, msg = self.se.step(st, self.latest(self.coin("BTC"), age_h=4), self.now)
+        self.assertIsNone(msg)
+        st, msg = self.se.step(st, self.latest(self.coin("BTC")), self.now)
+        self.assertIn("Veri yeniden geliyor", msg)
+        self.assertTrue(st["data_ok"])
+        st, msg = self.se.step(st, {}, self.now)
+        self.assertIn("dosya okunamadı", msg)
+
+    def test_missing_coin_listed_and_state_kept(self):
+        st, _ = self.se.step(None, self.latest(self.coin("BTC"), self.coin("BCH", rng=11)), self.now)
+        st, msg = self.se.step(st, self.latest(self.coin("BTC", rng=7), self.coin("BCH", oi=None)), self.now)
+        self.assertIn("Veri yok: BCH", msg)
+        self.assertEqual(st["coins"]["BCH"]["level"], "🔴")
+
+    def test_main_dry_run_writes_state(self):
+        from datetime import datetime as real_dt
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "latest.json").write_text(json.dumps(self.latest(self.coin("BTC"))), encoding="utf-8")
+            now = self.now
+
+            class FakeDT(real_dt):
+                @classmethod
+                def now(cls, tz=None):
+                    return now
+            with mock.patch.object(self.se, "DATA_DIR", Path(tmp)), \
+                    mock.patch.object(self.se, "datetime", FakeDT), \
+                    mock.patch.dict("os.environ", {"DRY_RUN": "1", "KRIPTO_ENV_FILE": str(Path(tmp, "yok"))}), \
+                    mock.patch("builtins.print") as pr:
+                self.assertEqual(self.se.main(), 0)
+            self.assertIn("KURU ÇALIŞTIRMA", pr.call_args_list[0][0][0])
+            st = json.loads(Path(tmp, "state.json").read_text(encoding="utf-8"))
+            self.assertEqual(st["coins"]["BTC"]["level"], "🟢")
+
+    def test_send_failure_keeps_old_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "latest.json").write_text(json.dumps(self.latest(self.coin("BTC"))), encoding="utf-8")
+            with mock.patch.object(self.se, "DATA_DIR", Path(tmp)), \
+                    mock.patch.object(self.se.notify, "send", return_value=False), \
+                    mock.patch.object(self.se.notify, "dry_run", return_value=False), \
+                    mock.patch("builtins.print"):
+                self.assertEqual(self.se.main(), 1)
+            self.assertFalse(Path(tmp, "state.json").exists())
+
+
+class TestNotify(unittest.TestCase):
+    def test_env_file_and_dry_run(self):
+        import notify
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp, "env")
+            f.write_text("# yorum\nKRIPTO_TG_TOKEN='abc'\nKRIPTO_TG_CHAT=-100\n", encoding="utf-8")
+            saved = {k: os.environ.pop(k) for k in ("KRIPTO_TG_TOKEN", "KRIPTO_TG_CHAT", "DRY_RUN")
+                     if k in os.environ}
+            try:
+                env = notify.load_env(str(f))
+                self.assertEqual(env["KRIPTO_TG_TOKEN"], "abc")
+                self.assertFalse(notify.dry_run(env))
+                self.assertTrue(notify.dry_run({**env, "DRY_RUN": "1"}))
+                self.assertTrue(notify.dry_run(notify.load_env(str(Path(tmp, "yok")))))
+            finally:
+                os.environ.update(saved)
+
+
+class TestWeakEvidence(unittest.TestCase):
+    def test_weak_tier_between_95_and_strict(self):
+        import backtest as bt
+        from datetime import date, timedelta
+        rng = random.Random(3)
+        trades = []
+        d0 = date(2025, 1, 6)
+        for i in range(52 * 7):
+            day = d0 + timedelta(days=i)
+            wk = "%d-%02d" % day.isocalendar()[:2]
+            for grp in (True, False):
+                for _ in range(6):
+                    pnl = rng.gauss(0.6 if grp else 0.0, 4)
+                    trades.append({"res": "tp", "clean": True, "pain": False, "pnl": pnl, "hours": 5,
+                                   "date": day.isoformat(), "week": wk, "conds": {"x": grp}})
+        weeks = sorted({t["week"] for t in trades})
+        dates = sorted({t["date"] for t in trades})
+        with mock.patch.dict(bt.P, {"bootstrap": 2000, "min_n": 60, "ci_level_pct": 99.99}):
+            r = bt.test_condition(trades, "x", weeks, dates[len(dates) // 2], random.Random(1))
+        self.assertGreater(r["pnl_ci95_low"], 0)
+        self.assertLessEqual(r["pnl_ci_low"], 0)  # katı aralık sıfırı içeriyor
+        self.assertTrue(r["weak"])
+        self.assertFalse(r["validated"])
 
 
 if __name__ == "__main__":

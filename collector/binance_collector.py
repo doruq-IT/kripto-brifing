@@ -224,6 +224,9 @@ def load_evidence(now):
         "per_coin": s["per_coin"],
         "tested": s["tested"],
         "validated": s["validated"],
+        "weak": [{k: c.get(k) for k in ("id", "desc_tr", "direction", "avg_pnl_true", "avg_pnl_false",
+                                        "pnl_lift", "liq_rate_true", "liq_rate_false", "n_true")}
+                 for c in s.get("weak", [])],
         "sl_summary": s.get("sl_summary"),
     }
 

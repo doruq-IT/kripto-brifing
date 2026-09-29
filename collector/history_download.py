@@ -12,7 +12,10 @@ Kaynaklar:
 Çıktı: data/history/<SYMBOL>/{fut_1h,spot_1h,funding,premium_1h,metrics}.csv
 Tekrar çalıştırılırsa sadece eksik kısmı indirir.
 
-Ortam değişkenleri: SYMBOLS, DAYS (varsayılan 365), HIST_DIR
+Ortam değişkenleri: SYMBOLS, DAYS (varsayılan 730), HIST_DIR
+
+Not: indirme sadece İLERİ doğru ekler. DAYS büyütülürse eski başlangıcın gerisi
+indirilmez; o durumda boş bir HIST_DIR'e sıfırdan indirin.
 """
 import csv
 import io
@@ -37,7 +40,7 @@ SPOT = "https://api.binance.com"
 ARCHIVE = "https://data.binance.vision/data/futures/um/daily/metrics"
 HOUR = 3_600_000
 DAY = 24 * HOUR
-DAYS = int(os.getenv("DAYS", "365"))
+DAYS = int(os.getenv("DAYS", "730"))
 WARMUP_DAYS = 270   # EMA200 (260 günlük pencere) + tampon
 METRIC_WARMUP = 32  # 30 günlük yüzdelik için
 HIST_DIR = Path(os.getenv("HIST_DIR", HERE / "data" / "history"))

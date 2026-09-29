@@ -58,7 +58,7 @@ P = {
     "feature_hour_utc": int(os.getenv("FEATURE_HOUR", "5")),
     "entry_hour_utc": int(os.getenv("ENTRY_HOUR", "6")),
     "step_h": int(os.getenv("STEP_H", "4")),
-    "days": int(os.getenv("DAYS", "365")),
+    "days": int(os.getenv("DAYS", "730")),
     "bootstrap": int(os.getenv("BOOT", "10000")),
     # Bonferroni: 100 − 5 / test sayısı (koşul × 2 yön); CI_LEVEL ile sabitlenebilir
     "ci_level_pct": float(os.getenv("CI_LEVEL") or round(100 - 5 / (2 * len(fx.CONDITIONS)), 3)),
@@ -296,6 +296,8 @@ def test_condition(ts, cid, weeks, mid_date, rng):
 
     lo, hi = ci(lifts)
     plo, phi = ci(pnl_lifts)
+    # Zayıf işaret için %95 aralık (çoklu test düzeltmesi YOK; brifinge kanıt olarak girmez)
+    w95 = (pnl_lifts[int(0.025 * len(pnl_lifts))], pnl_lifts[min(len(pnl_lifts) - 1, int(0.975 * len(pnl_lifts)))])         if pnl_lifts else (None, None)
 
     def half(pred):
         a = [t for t in A if pred(t["date"])]
@@ -314,13 +316,14 @@ def test_condition(ts, cid, weeks, mid_date, rng):
         "avg_pnl_true": sa["avg_pnl_usdt"], "avg_pnl_false": sb["avg_pnl_usdt"],
         "pnl_lift": round(pnl_lift, 3), "pnl_ci_low": r2(plo), "pnl_ci_high": r2(phi),
         "pnl_half1": r2(ph1), "pnl_half2": r2(ph2),
+        "pnl_ci95_low": r2(w95[0]), "pnl_ci95_high": r2(w95[1]),
     })
     same_sign = ph1 is not None and ph2 is not None and ph1 * pnl_lift > 0 and ph2 * pnl_lift > 0
     excl_zero = plo is not None and (plo > 0 or phi < 0)
-    res["validated"] = bool(
-        len(A) >= P["min_n"] and len(B) >= P["min_n"] and res["days_true"] >= 30
-        and excl_zero and same_sign and len(weeks) >= 20
-    )
+    enough = len(A) >= P["min_n"] and len(B) >= P["min_n"] and res["days_true"] >= 30 and len(weeks) >= 20
+    res["validated"] = bool(enough and excl_zero and same_sign)
+    excl95 = w95[0] is not None and (w95[0] > 0 or w95[1] < 0)
+    res["weak"] = bool(enough and excl95 and same_sign and not res["validated"])
     return res
 
 
@@ -433,6 +436,7 @@ def main():
             summary["conditions"].append(r)
     summary["tested"] = sum(1 for c in summary["conditions"] if "lift_pp" in c)
     summary["validated"] = [c for c in summary["conditions"] if c.get("validated")]
+    summary["weak"] = [c for c in summary["conditions"] if c.get("weak")]
     summary["sl_analysis"] = {"base": {}, "validated": {}}
     summary["sl_summary"] = {}
     for dname in ("long", "short"):
@@ -497,6 +501,14 @@ def render_report(s):
         L.append(f"  [{c['direction']}] {c['desc_tr']} ({c['id']}): PnL {c['avg_pnl_true']:+.2f} vs {c['avg_pnl_false']:+.2f} USDT "
                  f"→ {c['pnl_lift']:+.2f} [{c['pnl_ci_low']:+.2f}, {c['pnl_ci_high']:+.2f}], yarılar {c['pnl_half1']:+.2f}/{c['pnl_half2']:+.2f}; "
                  f"temiz %{c['rate_true']:.1f} vs %{c['rate_false']:.1f}, liq %{c['liq_rate_true']:.1f} vs %{c['liq_rate_false']:.1f}, n={c['n_true']}")
+    L.append("")
+    weak = s.get("weak", [])
+    L.append(f"3b) ZAYIF İŞARETLER ({len(weak)}; %95 aralık sıfırı içermiyor + iki yarıda aynı yön, çoklu test "
+             f"düzeltmesi yok — {s['tested']} testte tesadüfen birkaç tane beklenir; kanıt DEĞİLDİR)")
+    for c in sorted(weak, key=lambda c: -abs(c["pnl_lift"])):
+        L.append(f"  [{c['direction']}] {c['desc_tr']} ({c['id']}): PnL {c['avg_pnl_true']:+.2f} vs {c['avg_pnl_false']:+.2f} "
+                 f"→ {c['pnl_lift']:+.2f} [{c['pnl_ci95_low']:+.2f}, {c['pnl_ci95_high']:+.2f}], "
+                 f"yarılar {c['pnl_half1']:+.2f}/{c['pnl_half2']:+.2f}; liq %{c['liq_rate_true']:.1f} vs %{c['liq_rate_false']:.1f}, n={c['n_true']}")
     L.append("")
     L.append("4) TÜM KOŞULLAR (doğrulanmamışlar dahil; sadece bilgi, brifingte kanıt olarak kullanılmaz)")
     L.append(f"{'koşul':<20}{'yön':<6}{'n':>5}{'temiz% D/Y':>13}{'liq% D/Y':>11}{'PnL D/Y':>14}{'PnL fark':>9}{'aralık':>16}{'yarılar':>13}{'ok':>3}")
