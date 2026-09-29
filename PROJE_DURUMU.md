@@ -1,6 +1,6 @@
 # Kripto Brifing — Proje Durumu ve Devam Rehberi
 
-> Son güncelleme: 29.09.2026, ~13:45 TSİ
+> Son güncelleme: 29.09.2026, ~14:00 TSİ (sabah routine v2 kaydedildi)
 > Bu dosya projeye yeni bir Claude oturumunda kaldığı yerden devam etmek için hazırlandı. Yeni oturumda bu dosyayı ver ve "buradan devam edelim" de.
 
 > ⚠️ Bu repo **herkese açık** (GitHub'dan şifresiz clone edilebiliyor). Bu dosyaya ve repoya IP adresi, SSH portu, token, chat ID, API anahtarı, sunucudaki diğer servislerin ayrıntıları veya güvenlik açıkları **yazılmamalı**.
@@ -28,7 +28,7 @@
 | 2 | Toplayıcı: prim/basis, sıkışma (Bollinger genişliği) | ✅ canlıda |
 | 3 | Backtest: 2 yıl, 4 saatlik giriş, Bonferroni, zayıf işaret katmanı, 9 yeni aday koşul | ✅ canlıda (0/76 doğrulanmış, 3 zayıf işaret) |
 | 4 | Saatlik risk durumu → Telegram (sabah brifingiyle aynı kanal) | ✅ canlıda |
-| 5 | Sabah routine'ini yenilemek (iki mesaj, Gündem, "Dünden", biriken düzeltmeler) | ⏳ **sıradaki** |
+| 5 | Sabah routine'ini yenilemek (tek mesaj, Gündem, "Dünden", biriken düzeltmeler) | ✅ 29.09 routine'e kaydedildi; **30.09 ilk çalışma kontrol edilecek** |
 | 6 | Önemli gelişmede VPS'in routine'i API ile çağırması (günde en fazla 2–3) | ⏳ |
 
 ### Hemen teyit edilecek
@@ -263,7 +263,18 @@ Değişiklik yoksa:
 
 ---
 
-## 9. Sabah routine'i (5. adım — sıradaki iş)
+## 9. Sabah routine'i
+
+### 29.09 öğleden sonra yapılanlar (güncel hâl)
+
+- **Tek mesaj** (iki mesaj kararı geri alındı, Okan): 🟢/🟡/🔴 grupları ve liq radarı saatlik mesajda olduğu için brifingten çıktı. Sıra: 🌍 Piyasa, ⏮️ Dünden, 📰 Gündem (≤3), 🪙 Coinlerimiz, ⏰ Bugün takipte, 🇹🇷 Türkiye, 📊 Türev (📡 BTC/ETH + uç coin, 📍 seviyeler, 🧭 Yön tek satır), ⚠️ Bugün dikkat, ❓ Yarın bakılacak. ~2500 birim, sınır 3500.
+- Kararlar (Okan, 29.09): fiyatlar hepsi Binance (Crypto.com yedek); profil satırı ~%78 / ~%91 / gerçekleşen ~%73-75; 🔴 asimetrisi şimdilik değişmedi (metin "-%5 sadece düşüşe bakar" diyor); zayıf işaret satırı tek mesajda çıkarıldı (saatlik mesajda 👥 ve 🟢 geçmiş satırı var).
+- Yeni kaynak: CoinGecko `/api/v3/global` (dominans, hacim). Ortamın allowed domains listesine `api.coingecko.com` eklendi (Okan; henüz çalışmada doğrulanmadı).
+- **Dünden hafızası:** `claude/brifing-hafiza` branch'i (orphan, sadece `sorular.json`). Routine mesajdan sonra soruları buraya push eder, ertesi sabah raw URL'den okur. Cevaplar "Evet / Hayır / Henüz sonuçlanmadı" (isabet değil: soruya beklenti koymak yön tahmini olurdu). Routine'e repo bağlandı (29.09, Okan, UI'da prompt kutusunun altındaki "Select a repository").
+- Claude artık routine'i `RemoteTrigger` aracıyla **okuyabiliyor** (prompt, repo, sonraki çalışma, çalışma kayıtları: `list_runs` / `get_run_log`). Ortamın allowed domains listesi bu araçla görünmüyor.
+- Deneme bu oturumda yapıldı (Telegram'a gönderilmeden); günlük kota harcanmadı.
+
+### Eski plan (29.09 sabah; iki mesaj kısmı geçersiz)
 
 - Ad: **Kripton Karar Sabah Brifingi**, ID `trig_01Swxrg8zfpKMCuTfTBUAMJU`, `47 5 * * *` UTC (08:47 TSİ), bağlayıcı: Crypto.com. Telegram: routine ortamındaki `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
 - ⚠️ Routine `http_api` ile oluşturulduğu için Claude güncelleyemez. Claude `briefing/routine_prompt.txt`'yi güncelleyip push eder ve **tam metni** sohbete yazar; Okan yapıştırır.
@@ -418,9 +429,9 @@ Eski branch'e dönüş (acil durum): `cd /opt/kripto-brifing && git checkout cla
 
 ## 14. Sıradaki adımlar
 
-1. Sunucuda `68636b2` teyidi ve ilk tek satır özetin kanala geldiğinin kontrolü (§1).
-2. 30.09 sabah brifingini kontrol et: 10. madde "kanıt yok" + 2 yıllık filtresiz ortalamalar doğru mu.
-3. **5. adım — sabah routine'i:** §9'daki iki mesajlı yapı + biriken düzeltmeler. Önce normal oturumda dene (Telegram'a göndermeden), sonra Okan yapıştırır. "Dünden" hafızası için routine'in repoya yazma erişimini doğrula; ⏰ bölümü için ücretsiz ve buluttan erişilebilir unlock/ETF/opsiyon kaynağı bul.
+1. ✅ Sunucu `68636b2`, testler OK; saatlik mesaj kanala geliyor; 10:30Z yayınından itibaren `evidence` 2 yıllık (0/76, 3 zayıf).
+2. **30.09 sabah brifingini kontrol et** (`RemoteTrigger list_runs` → `get_run_log`): tek mesaj gitti mi, CoinGecko erişildi mi, `sorular.json` `claude/brifing-hafiza`'ya push edildi mi, 🧭 satırı "kanıt yok" + long -0,68 / short -0,37 mi. 01.10'da ⏮️ Dünden satırının dolduğunu kontrol et.
+3. ⏰ bölümü için ücretsiz ve buluttan erişilebilir unlock/ETF/opsiyon kaynağı (şimdilik web araması).
 4. **6. adım — Aşama C:** VPS olağan dışı hareket görürse (1 saatte sert fiyat hareketi, OI sıçraması, funding uç değeri) routine'in API tetikleyicisini çağırır; Claude haberleri araştırıp kısa "ne oldu" mesajı yazar. Pro'da günde en fazla 2–3 çağrı + bekleme süresi. Yeni routine gerekir (API trigger, token sunucuda env dosyasında).
 5. 04.10 ilk otomatik 2 yıllık backtest raporunu oku.
 6. Opsiyonel: kurgu parametre taraması (TP/tutma süresi/kaldıraç) — işlem önerisi değil, geçmiş veride ne olduğunu gösterir; eklemeli kurguyu simüle etmek; `claude/durum-motoru`'yu main'e merge etmek; deneme klasörlerini temizlemek.
