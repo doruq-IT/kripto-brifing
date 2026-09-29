@@ -272,7 +272,8 @@ Değişiklik yoksa:
 - Yeni kaynak: CoinGecko `/api/v3/global` (dominans, hacim). Ortamın allowed domains listesine `api.coingecko.com` eklendi (Okan; henüz çalışmada doğrulanmadı).
 - **Dünden hafızası:** `claude/brifing-hafiza` branch'i (orphan, sadece `sorular.json`). Routine mesajdan sonra soruları buraya push eder, ertesi sabah raw URL'den okur. Cevaplar "Evet / Hayır / Henüz sonuçlanmadı" (isabet değil: soruya beklenti koymak yön tahmini olurdu). Routine'e repo bağlandı (29.09, Okan, UI'da prompt kutusunun altındaki "Select a repository").
 - Claude artık routine'i `RemoteTrigger` aracıyla **okuyabiliyor** (prompt, repo, sonraki çalışma, çalışma kayıtları: `list_runs` / `get_run_log`). Ortamın allowed domains listesi bu araçla görünmüyor.
-- Deneme bu oturumda yapıldı (Telegram'a gönderilmeden); günlük kota harcanmadı.
+- Deneme bu oturumda yapıldı (Telegram'a gönderilmeden).
+- **29.09 13:57 manuel çalışma (v2 ilk canlı):** repo klonlandı, CoinGecko erişildi, mesaj gitti (2792 karakter), `sorular.json` push edildi (3 soru, tarih 2026-09-29) → 30.09 brifinginde ⏮️ Dünden ilk kez dolu gelmeli. Bulunan iki hata prompt'ta düzeltildi (`92dbbbb`, routine'e yapıştırıldı ve birebir doğrulandı): LINK funding işareti ters yazıldı (+%0,0037 → -%0,0037; düşük yüzdelik "negatif" sanıldı) ve bugünkü JOLTS/Conference Board takvimden kaçtı (tek arama) → artık en az 3 takvim araması.
 
 ### Eski plan (29.09 sabah; iki mesaj kısmı geçersiz)
 
