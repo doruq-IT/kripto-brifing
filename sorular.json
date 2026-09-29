@@ -1,1 +1,5 @@
-{"tarih": "2000-01-01", "sorular": []}
+{"tarih": "2026-09-29", "sorular": [
+{"soru": "AVAX 🔴 gruptan çıktı mı?", "nasil": "latest.json AVAX: range_24h_pct<10 VE |oi_change_24h_pct|<15 VE change_24h_pct>-5 ise Evet"},
+{"soru": "ETH long hesap yüzdesi %70'in altına indi mi?", "nasil": "latest.json ETH global_long_pct < 70 ise Evet"},
+{"soru": "BTC 82.500'ün altına indi mi?", "nasil": "latest.json BTC low_24h veya price 82500 altındaysa Evet"}
+]}
