@@ -512,17 +512,23 @@ class TestStateEngine(unittest.TestCase):
         self.assertEqual(a(self.coin("BTC", oi=-12))[0], "🟡")
         self.assertEqual(a(self.coin("BTC", rng=10))[0], "🔴")
         self.assertEqual(a(self.coin("BTC", oi=15))[0], "🔴")
-        lvl, why, _ = a(self.coin("BTC", chg=-5.2, rng=6))
+        lvl, why, _, rest = a(self.coin("BTC", chg=-5.2, rng=6))
         self.assertEqual(lvl, "🔴")
-        self.assertIn("24s -%5,2", why)
+        self.assertEqual(why, "24s -%5,2")
+        self.assertEqual(rest, "aralık %6,0 · long %60,0 · OI +%2,0")
+        lvl, why, _, rest = a({**self.coin("ETH", lp=72, rng=6), "liq_distance_in_atr": 4.1})
+        self.assertEqual((lvl, why), ("🟡", "long %72,0, aralık %6,0"))
+        self.assertEqual(rest, "OI +%2,0 · liq 4,1 gün")
         self.assertEqual(a(self.coin("BTC", conds=["long_crowd_70", "squeeze"]))[2], ["👥", "🌀"])
         self.assertIsNone(a(self.coin("BTC", oi=None)))
 
     def test_first_run_reports_everything(self):
         st, msg = self.se.step(None, self.latest(self.coin("BTC"), self.coin("SUI", rng=12)), self.now)
         self.assertIn("İlk durum raporu", msg)
-        self.assertIn("🟢 BTC", msg)
-        self.assertIn("🔴 SUI (aralık %12,0)", msg)
+        self.assertIn("🟢 SAKİN", msg)
+        self.assertIn("BTC: aralık %3,0 · long %60,0 · OI +%2,0", msg)
+        self.assertIn("SUI: neden aralık %12,0 | long %60,0 · OI +%2,0", msg)
+        self.assertIn("yönden bağımsız", msg)
         self.assertIn("14:31 TSİ (veri 14:00)", msg)
         self.assertIn("işlem önerisi değil", msg)
         self.assertEqual(st["coins"]["SUI"]["level"], "🔴")
@@ -536,7 +542,7 @@ class TestStateEngine(unittest.TestCase):
     def test_worsening_is_immediate_improvement_needs_two_hours(self):
         st, _ = self.se.step(None, self.latest(self.coin("SOL")), self.now)
         st, msg = self.se.step(st, self.latest(self.coin("SOL", lp=71.2, conds=["long_crowd_70"])), self.now)
-        self.assertIn("• SOL 🟢 → 🟡 (long %71,2 👥)", msg)
+        self.assertIn("• SOL👥 🟢 → 🟡, neden long %71,2", msg)
         self.assertIn("👥 kalabalık long", msg)
         st, msg = self.se.step(st, self.latest(self.coin("SOL")), self.now)  # 1. saat iyi
         self.assertIsNone(msg)
@@ -567,6 +573,20 @@ class TestStateEngine(unittest.TestCase):
         self.assertTrue(st["data_ok"])
         st, msg = self.se.step(st, {}, self.now)
         self.assertIn("dosya okunamadı", msg)
+
+    def test_pending_improvement_shown_and_green_history(self):
+        ev = {"status": "ok", "period": {"days": 727}, "validated": [],
+              "weak": [{"id": "filter_green", "direction": "long", "liq_rate_true": 1.0, "liq_rate_false": 3.1}]}
+        st, _ = self.se.step(None, {**self.latest(self.coin("SOL", rng=6)), "evidence": ev}, self.now)
+        st, _ = self.se.step(st, self.latest(self.coin("SOL"), self.coin("BCH", rng=11)), self.now)
+        self.assertEqual(st["coins"]["SOL"]["pending_n"], 1)
+        _, msg = self.se.step(None, {**self.latest(self.coin("SOL")), "evidence": ev}, self.now)
+        self.assertIn("Geçmiş 727 gün: 🟢 durumda açılan long'larda liq %1,0, diğer durumlarda %3,1 "
+                      "(zayıf işaret, kanıt değil).", msg)
+        view = {"SOL": ("🟡", "düzeliyor, şu an 🟢", [], "aralık %3,0")}
+        msg = self.se.render(self.latest(), self.now, view, [], [], False, True)
+        self.assertIn("SOL: neden düzeliyor, şu an 🟢 | aralık %3,0", msg)
+        self.assertNotIn("Geçmiş", msg)  # evidence yoksa satır yok
 
     def test_missing_coin_listed_and_state_kept(self):
         st, _ = self.se.step(None, self.latest(self.coin("BTC"), self.coin("BCH", rng=11)), self.now)

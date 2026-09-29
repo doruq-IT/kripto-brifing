@@ -57,33 +57,41 @@ def tr_pct(v, nd=1):
     return ("-" if v < 0 else "+") + "%" + tr_num(abs(v), nd)
 
 
+def parts(c):
+    """Mesajda gösterilen ölçüler (Türkçe biçimli)."""
+    out = {
+        "range": f"aralık %{tr_num(c['range_24h_pct'])}",
+        "long": f"long %{tr_num(c['global_long_pct'])}",
+        "oi": f"OI {tr_pct(c['oi_change_24h_pct'])}",
+        "chg": f"24s {tr_pct(c['change_24h_pct'])}",
+    }
+    if c.get("liq_distance_in_atr") is not None:
+        out["liq"] = f"liq {tr_num(c['liq_distance_in_atr'])} gün"
+    return out
+
+
 def assess(c):
-    """Tek coin → (seviye, gerekçe metni, etiketler) veya veri eksikse None."""
+    """Tek coin → (seviye, gerekçe metni, etiketler, ölçü satırı) veya veri eksikse None.
+
+    Gerekçe: seviyeyi belirleyen ölçüler. Ölçü satırı: geri kalan ölçüler.
+    """
     rng, lp = c.get("range_24h_pct"), c.get("global_long_pct")
     oi, chg = c.get("oi_change_24h_pct"), c.get("change_24h_pct")
     if None in (rng, lp, oi, chg):
         return None
-    red = []
-    if rng >= 10:
-        red.append(f"aralık %{tr_num(rng)}")
-    if abs(oi) >= 15:
-        red.append(f"OI {tr_pct(oi)}")
-    if chg <= -5:
-        red.append(f"24s {tr_pct(chg)}")
     conds = set(c.get("conditions_true") or [])
     tags = [t for cid, t in TAGS if cid in conds]
+    red = [k for k, hit in (("range", rng >= 10), ("oi", abs(oi) >= 15), ("chg", chg <= -5)) if hit]
     if red:
-        return "🔴", ", ".join(red), tags
-    if rng <= 5 and lp < 70 and abs(oi) < 10:
-        return "🟢", "", tags
-    why = []
-    if lp >= 70:
-        why.append(f"long %{tr_num(lp)}")
-    if rng > 5:
-        why.append(f"aralık %{tr_num(rng)}")
-    if abs(oi) >= 10:
-        why.append(f"OI {tr_pct(oi)}")
-    return "🟡", ", ".join(why), tags
+        level, why = "🔴", red
+    elif rng <= 5 and lp < 70 and abs(oi) < 10:
+        level, why = "🟢", []
+    else:
+        level = "🟡"
+        why = [k for k, hit in (("long", lp >= 70), ("range", rng > 5), ("oi", abs(oi) >= 10)) if hit]
+    pt = parts(c)
+    rest = " · ".join(pt[k] for k in ("range", "long", "oi", "liq") if k in pt and k not in why)
+    return level, ", ".join(pt[k] for k in why), tags, rest
 
 
 def step(prev, latest, now):
@@ -119,7 +127,7 @@ def step(prev, latest, now):
             if coin in pcoins:
                 state["coins"][coin] = pcoins[coin]
             continue
-        level, why, tags = a
+        level, why, tags, rest = a
         p = pcoins.get(coin)
         if p is None:
             st = {"level": level, "since": state["updated"], "pending": None, "pending_n": 0}
@@ -138,7 +146,10 @@ def step(prev, latest, now):
         else:
             st = {**p, "pending": None, "pending_n": 0}
         state["coins"][coin] = st
-        view[coin] = (st["level"], why if st["level"] == level else "düzeliyor", tags)
+        if st["level"] == level:
+            view[coin] = (st["level"], why, tags, rest)
+        else:  # iyileşme teyit bekliyor: eski seviyede, güncel ölçülerle
+            view[coin] = (st["level"], f"düzeliyor, şu an {level}", tags, rest)
 
     recovered = not prev.get("data_ok", True)
     if not (first or changes or recovered):
@@ -148,6 +159,42 @@ def step(prev, latest, now):
 
 def _key(coin):
     return COIN_ORDER.index(coin) if coin in COIN_ORDER else len(COIN_ORDER)
+
+
+LEVEL_HEAD = {
+    "🟢": "🟢 SAKİN — hareket 5x kurgun için sakin",
+    "🟡": "🟡 TEMKİNLİ — bir ölçü sınırda",
+    "🔴": "🔴 SERT — hareket 5x kurgun için fazla sert",
+}
+LEGEND = [
+    "Seviyeler yönden bağımsız: long ve short tutan için aynı risk. Yön bilgisi değildir.",
+    "Aralık = 24s en yüksek-en düşük farkı (🟢 ≤%5, 🔴 ≥%10; 5x'te ~%20 ters hareket liq). "
+    "Long = long hesap oranı (≥%70 kalabalık long: ters harekette long tutanlar için toplu liq riski). "
+    "OI = açık pozisyon 24s değişimi (🟡 ±%10, 🔴 ±%15). 24s ≤ -%5 düşüş de 🔴. "
+    "Liq gün = 5x liq mesafen kaç günlük ortalama hareket (küçükse risk yüksek).",
+]
+
+
+def green_history(latest):
+    """Backtest'te 🟢 filtresinin long liq oranı (doğrulanmış ya da zayıf işaret) → satır veya None."""
+    ev = latest.get("evidence") or {}
+    if ev.get("status") != "ok":
+        return None
+    days = (ev.get("period") or {}).get("days")
+    for key, label in (("validated", "doğrulanmış"), ("weak", "zayıf işaret, kanıt değil")):
+        for c in ev.get(key) or []:
+            if c.get("id") == "filter_green" and c.get("direction") == "long" \
+                    and c.get("liq_rate_true") is not None and c.get("liq_rate_false") is not None:
+                return (f"Geçmiş {days} gün: 🟢 durumda açılan long'larda liq %{tr_num(c['liq_rate_true'])}, "
+                        f"diğer durumlarda %{tr_num(c['liq_rate_false'])} ({label}).")
+    return None
+
+
+def coin_line(coin, why, tags, rest):
+    head = coin + "".join(tags)
+    if why:
+        return f"{head}: neden {why}" + (f" | {rest}" if rest else "")
+    return f"{head}: {rest}"
 
 
 def render(latest, now, view, changes, missing, first, recovered):
@@ -162,29 +209,32 @@ def render(latest, now, view, changes, missing, first, recovered):
     elif recovered and not changes:
         L.append("Veri yeniden geliyor.")
     if changes:
+        L.append("")
         L.append("Değişen:")
         for coin, old, new, why, tags in sorted(changes, key=lambda x: _key(x[0])):
             arrow = f"{old} → {new}" if old else f"yeni: {new}"
-            extra = " ".join(x for x in (why, "".join(tags)) if x)
-            L.append(f"• {coin} {arrow}" + (f" ({extra})" if extra else ""))
+            L.append(f"• {coin}{''.join(tags)} {arrow}" + (f", neden {why}" if why else ""))
     used_tags = set()
     for lvl in ("🟢", "🟡", "🔴"):
-        items = []
-        for coin in sorted((k for k, v in view.items() if v[0] == lvl), key=_key):
-            _, why, tags = view[coin]
+        coins = sorted((k for k, v in view.items() if v[0] == lvl), key=_key)
+        if not coins:
+            continue
+        L.append("")
+        L.append(LEVEL_HEAD[lvl])
+        for coin in coins:
+            _, why, tags, rest = view[coin]
             used_tags.update(tags)
-            s = coin + "".join(tags)
-            if why and lvl != "🟢":
-                s += f" ({why})"
-            items.append(s)
-        if items:
-            L.append(f"{lvl} " + ", ".join(items))
+            L.append(coin_line(coin, why, tags, rest))
     if missing:
         L.append("Veri yok: " + ", ".join(sorted(missing, key=_key)))
+    L.append("")
     if used_tags:
         L.append(" · ".join(f"{t} {TAG_LEGEND[t]}" for t in TAG_LEGEND if t in used_tags))
-    L.append("🟢 kurallarınla çelişmiyor · 🟡 temkinli · 🔴 hareket kurgun için sert")
-    L.append("Yön: 2 yıllık veride tutarlı yön sinyali yok. Bilgi amaçlı, işlem önerisi değil.")
+    L.extend(LEGEND)
+    gh = green_history(latest)
+    if gh:
+        L.append(gh)
+    L.append("Bilgi amaçlı, işlem önerisi değil.")
     return "\n".join(L)
 
 
