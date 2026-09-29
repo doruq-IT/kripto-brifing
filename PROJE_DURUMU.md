@@ -425,6 +425,7 @@ Eski branch'e dönüş (acil durum): `cd /opt/kripto-brifing && git checkout cla
 | **Likidasyon haritası eklenmedi** | Model tahmini, geçmişi yok, test edilemez |
 | **Sabah brifingi iki mesaj** (29.09) | İçerik 3800'e sığmaz; gündem ve türev ayrı |
 | SL yok (şimdilik) | 28.09 SL analizi |
+| **Haber puanı risk seviyesine girmez** (29.09, Okan) | Geçmişe dönük test edilemez, LLM puanı tutarsız, yön sinyaline kayar; zamanlanmış olaylar sabah ⏰ satırında zaten var, saatlik 📅 etiketi gereksiz bulundu. Açık kalan fikir: "makro veri günü" (CPI/FOMC/istihdam) aday koşul olarak backtest'e (liq oranı farkı) |
 
 ---
 
