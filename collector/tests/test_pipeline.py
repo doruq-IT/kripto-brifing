@@ -533,11 +533,29 @@ class TestStateEngine(unittest.TestCase):
         self.assertIn("işlem önerisi değil", msg)
         self.assertEqual(st["coins"]["SUI"]["level"], "🔴")
 
-    def test_no_change_no_message(self):
-        st, _ = self.se.step(None, self.latest(self.coin("BTC")), self.now)
-        st2, msg = self.se.step(st, self.latest(self.coin("BTC", rng=4)), self.now)
-        self.assertIsNone(msg)
+    def assertSummary(self, msg):
+        self.assertTrue(msg.startswith("🕐 14:31 TSİ · değişiklik yok · "), msg)
+        self.assertNotIn("\n", msg)
+
+    def test_no_change_summary_by_day_silence_at_night(self):
+        from datetime import timedelta
+        st, _ = self.se.step(None, self.latest(self.coin("BTC"), self.coin("LINK", rng=16),
+                                               self.coin("ETH", lp=71)), self.now)
+        st2, msg = self.se.step(st, self.latest(self.coin("BTC", rng=4), self.coin("LINK", rng=15),
+                                                self.coin("ETH", lp=72), self.coin("SUI", oi=None)), self.now)
+        self.assertEqual(msg, "🕐 14:31 TSİ · değişiklik yok · 🟢 BTC · 🟡 ETH · 🔴 LINK · veri yok: SUI")
         self.assertEqual(st2["coins"]["BTC"]["level"], "🟢")
+        night = self.now - timedelta(hours=12)  # 02:31 TSİ
+        _, msg = self.se.step(st, {**self.latest(self.coin("BTC")),
+                                   "generated_at": night.isoformat()}, night)
+        self.assertIsNone(msg)
+        _, msg = self.se.step(st, {**self.latest(self.coin("BTC", rng=12)),
+                                   "generated_at": night.isoformat()}, night)
+        self.assertIn("• BTC 🟢 → 🔴", msg)  # gece de değişiklik bildirilir
+        early = self.now - timedelta(hours=6, minutes=31)  # 08:00 TSİ: özet başlar
+        _, msg = self.se.step(st, {**self.latest(self.coin("BTC")),
+                                   "generated_at": early.isoformat()}, early)
+        self.assertTrue(msg.startswith("🕐 08:00 TSİ · değişiklik yok"))
 
     def test_worsening_is_immediate_improvement_needs_two_hours(self):
         st, _ = self.se.step(None, self.latest(self.coin("SOL")), self.now)
@@ -545,7 +563,8 @@ class TestStateEngine(unittest.TestCase):
         self.assertIn("• SOL👥 🟢 → 🟡, neden long %71,2", msg)
         self.assertIn("👥 kalabalık long", msg)
         st, msg = self.se.step(st, self.latest(self.coin("SOL")), self.now)  # 1. saat iyi
-        self.assertIsNone(msg)
+        self.assertSummary(msg)
+        self.assertIn("🟡 SOL", msg)
         self.assertEqual(st["coins"]["SOL"]["level"], "🟡")
         self.assertEqual(st["coins"]["SOL"]["pending_n"], 1)
         st, msg = self.se.step(st, self.latest(self.coin("SOL")), self.now)  # 2. saat iyi
@@ -556,10 +575,10 @@ class TestStateEngine(unittest.TestCase):
         st, _ = self.se.step(None, self.latest(self.coin("ETH", rng=6)), self.now)
         st, _ = self.se.step(st, self.latest(self.coin("ETH")), self.now)          # iyi (1)
         st, msg = self.se.step(st, self.latest(self.coin("ETH", rng=6)), self.now)  # tekrar 🟡
-        self.assertIsNone(msg)
+        self.assertSummary(msg)
         self.assertEqual(st["coins"]["ETH"]["pending_n"], 0)
         st, msg = self.se.step(st, self.latest(self.coin("ETH")), self.now)        # iyi (1) yeniden
-        self.assertIsNone(msg)
+        self.assertSummary(msg)
 
     def test_stale_data_warns_once_then_recovers(self):
         st, _ = self.se.step(None, self.latest(self.coin("BTC")), self.now)

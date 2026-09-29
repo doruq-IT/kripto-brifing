@@ -10,6 +10,9 @@ filter_green / filter_red olarak test edilir):
 Etiketler seviyeyi değiştirmez, sadece bilgi verir: 👥 kalabalık long, 〰️ trend
 çelişkisi, 💸 prim yüksek, 🌀 sıkışma.
 
+Gönderim: değişiklik varsa detaylı mesaj (her saat, gece dahil). Değişiklik yoksa
+QUIET_START–QUIET_END (00:00–08:00 TSİ) dışında tek satırlık özet, gece hiçbir şey.
+
 Histerezis: kötüleşme (🟢→🟡, 🟡→🔴) hemen bildirilir; iyileşme ancak yeni seviye
 IMPROVE_HOURS (2) saat üst üste görülürse kabul edilir. Böylece sınırda gidip gelen
 bir coin her saat mesaj üretmez.
@@ -33,6 +36,7 @@ import notify  # noqa: E402
 DATA_DIR = Path(os.getenv("DATA_DIR", Path(__file__).resolve().parent / "data"))
 STATE_FILE = "state.json"
 IMPROVE_HOURS = 2
+QUIET_START, QUIET_END = 0, 8  # TSİ saat; bu aralıkta değişiklik yoksa mesaj yok
 MAX_DATA_AGE_H = 2
 TSI = timezone(timedelta(hours=3))
 RANK = {"🟢": 0, "🟡": 1, "🔴": 2}
@@ -152,9 +156,23 @@ def step(prev, latest, now):
             view[coin] = (st["level"], f"düzeliyor, şu an {level}", tags, rest)
 
     recovered = not prev.get("data_ok", True)
-    if not (first or changes or recovered):
+    if first or changes or recovered:
+        return state, render(latest, now, view, changes, missing, first, recovered)
+    if QUIET_START <= now.astimezone(TSI).hour < QUIET_END:
         return state, None
-    return state, render(latest, now, view, changes, missing, first, recovered)
+    return state, summary(now, view, missing)
+
+
+def summary(now, view, missing):
+    """Değişiklik olmayan saatlerin tek satırlık özeti."""
+    out = [f"🕐 {now.astimezone(TSI).strftime('%H:%M')} TSİ", "değişiklik yok"]
+    for lvl in ("🟢", "🟡", "🔴"):
+        coins = sorted((k for k, v in view.items() if v[0] == lvl), key=_key)
+        if coins:
+            out.append(f"{lvl} " + " ".join(coins))
+    if missing:
+        out.append("veri yok: " + " ".join(sorted(missing, key=_key)))
+    return " · ".join(out)
 
 
 def _key(coin):
