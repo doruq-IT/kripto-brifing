@@ -26,8 +26,9 @@ VERİ
 - Korku-açgözlülük endeksi: SADECE şu komutla al: curl -s "https://api.alternative.me/fng/?limit=2" → bugünkü değer, sınıfı ve dünkü değer. Başka site kullanma.
 - Dünün soruları: curl -s "https://raw.githubusercontent.com/doruq-IT/kripto-brifing/claude/brifing-hafiza/sorular.json" → {"tarih": "YYYY-AA-GG", "sorular": [{"soru": ..., "nasil": ...}]}. "nasil" alanı cevabın nasıl kontrol edileceğini söyler.
 - Haberler, ABD vadelileri/DXY/10 yıllık faiz, takvim, token unlock, Türkiye: web araması; sadece son 24 saat (takvim için bugün ve yarın). Reuters, Bloomberg, CoinDesk, The Block, Yahoo Finance, CNBC gibi yerleşik yayınları tercih et. Tek kaynağa dayanan haberi, iddiayı veya rakamı her seferinde "doğrulanmadı" diye işaretle. Fiyatları arama sonuçlarından alma.
-- Makro takvim saatlerini mümkünse resmi kaynaktan doğrula (BLS, BEA, Federal Reserve, Conference Board, ISM, ECB, BoJ, BoE, TCMB).
+- Makro takvim: "bulunamadı" yazmadan önce en az 3 ayrı arama yap: (1) "US economic calendar <bugünün tarihi İngilizce, örn. September 29 2026>", (2) "economic calendar week of <haftanın pazartesi tarihi>", (3) bugün ve yarın için adı geçen veya olası verilerin adıyla ("JOLTS", "PCE", "CPI", "jobs report", "ISM" + ay + yıl). Haftalık takvim sayfası bulursan (Kiplinger, Trading Economics, MarketWatch, Investing.com) bugünün ve yarının satırlarını oradan al. Günü mümkünse resmi kaynaktan doğrula (BLS, BEA, Federal Reserve, Conference Board, ISM, ECB, BoJ, BoE, TCMB). Kaynaklar gün konusunda çelişiyorsa o veriyi "gün doğrulanmadı" diye yaz.
 - Rakam uydurma; bulamadığını "alınamadı" yaz.
+- Binance rakamlarını dosyadaki değerden işaretiyle birebir yaz. Yüzdelik sırası düşük olması değerin negatif olduğu anlamına gelmez (örn: funding +%0,0037 ve "son 30 günün en düşüklerinde" birlikte olabilir). Funding negatifse bunu ayrıca belirt: "funding negatif → short tutanlar long tutanlara ödüyor".
 
 DİL (en önemli kural)
 - Okan mesajı telefonda, sabah hızlıca okuyacak. Her maddeyi ilk okuyuşta anlaşılacak kadar basit ve net yaz.
@@ -48,7 +49,7 @@ FORMAT
 
 MESAJ
 Başlık: "☀️ Sabah Brifingi — GG.AA.YYYY HH:MM TSİ"
-1. 🌍 Piyasa (en fazla 4 satır):
+1. 🌍 Piyasa (en fazla 4 satır; BTC ve ETH aynı satırda):
    - BTC ve ETH fiyatı, 24s değişim, gün aralığındaki konum ((fiyat-low)/(high-low)): %0-25 "günün dibine yakın", %25-75 "günün ortasında", %75-100 "günün tepesine yakın"; tek kısa ifadeyle trend: günlük EMA50'nin üstünde/altında ve 4 saatlik trend yukarı/aşağı.
    - 11 coinden en çok yükselen ve en çok düşen 3'er coin (change_24h_pct, tek satır). Yükselen 3'ten azsa olanları yaz ve "diğerleri düşüşte" de; düşen için de aynısı.
    - BTC dominansı, 24s toplam hacim, korku-açgözlülük bugünkü değer + sınıf (dün: değer). Sınıfı Türkçe yaz: Aşırı Korku, Korku, Nötr, Açgözlülük, Aşırı Açgözlülük.
