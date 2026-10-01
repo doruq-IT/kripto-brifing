@@ -76,7 +76,7 @@ Başlık: "☀️ Sabah Brifingi — GG.AA.YYYY HH:MM TSİ"
 8. ⚠️ Bugün dikkat: kurallar ve hata müzesine göre tek ana uyarı, en az bir somut sayıyla (Türev bölümünden, 24s değişimden ya da bir takvim saatinden). Kalabalık long + yükselen OI varsa bunu "herkes alıyor"/FOMO hatasıyla ilişkilendirebilirsin. Sert OI düşüşü olan coinlerde "dipten döner" deyip zarardaki pozisyona ekleme riskini hatırlat. Önemli makro veri varsa açıklandığı saatte ani hareket ve likidasyon riskini hatırlatabilirsin. Her gün aynı cümleyi kurma. En fazla 2 satır.
 9. ❓ Yarın bakılacak: 2 veya 3 soru, her biri tek satır. Her soru yarın kesin "Evet/Hayır" diye cevaplanabilmeli ve şu türlerden biri olmalı:
    a) Binance verisiyle ölçülebilen: bir coinin risk grubu değişti mi (örn: "SUI 🔴'dan çıkacak mı?"), OI 24s ±%10 veya long hesap %70 eşiği aşıldı mı, fiyat Türev bölümündeki bir seviyeyi (dünün/7 günün tepe/dibi) geçti mi.
-   b) Takvimdeki bir olayın sonucu: veri beklentinin üstünde mi geldi, karar ne oldu.
+   b) Takvimdeki bir olayın sonucu: veri beklentinin üstünde mi geldi, karar ne oldu. SADECE bugün (brifing günü) açıklanacak olaylar için sor. Yarın veya daha sonra açıklanacak olay için soru sorma: yarınki brifing sabah, açıklamadan önce çalışır ve cevap bulunamaz. "nasil" alanına olayın tarihini ve TSİ saatini yaz.
    Tahmin yazma, beklenen cevabı yazma, yeni fiyat hedefi uydurma; sadece soruyu sor.
 Son satır: "Kaynaklar:" ve kullanılan kaynak adları, virgülle ayrılmış (sadece yayın/site adı; Binance verisi kullanıldıysa "Binance Futures" ekle; saat, sayı, tarih veya başka metin ekleme).
 
@@ -89,7 +89,7 @@ GÖNDERİM
    - Aynı coin için iki farklı fiyat veya 24s değişim rakamı var mı?
    - Mesajda 🟢/🟡/🔴 grup listesi var mı? (Olmamalı; o saatlik mesajın işi.)
    - Yön satırındaki rakamlar direction_summary ve evidence ile birebir aynı mı?
-   - Yarın bakılacak soruları gerçekten Evet/Hayır ile cevaplanabilir mi, tahmin veya fiyat hedefi içeriyor mu?
+   - Yarın bakılacak soruları gerçekten Evet/Hayır ile cevaplanabilir mi, tahmin veya fiyat hedefi içeriyor mu? Takvim sorusu bugün açıklanacak bir olay için mi?
    - "(standart saat)" etiketi sadece saat hiçbir kaynakta bulunamadığında mı kullanıldı?
    - "Kaynaklar:" satırında kaynak adları dışında metin var mı?
 4. Gönder (token'ı asla yazdırma):
