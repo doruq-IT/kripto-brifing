@@ -1,5 +1,5 @@
-{"tarih": "2026-10-01", "sorular": [
-{"soru": "ETH long hesap yüzdesi %70'in altına indi mi?", "nasil": "latest.json ETH global_long_pct < 70 ise Evet"},
-{"soru": "BTC 85.633'ün üstüne çıktı mı?", "nasil": "latest.json BTC high_24h veya price 85633 üstündeyse Evet"},
-{"soru": "ABD istihdam raporu beklentinin üstünde mi geldi?", "nasil": "2 Ekim ABD Eylül istihdam raporu (nonfarm payrolls) açıklanan rakam konsensüsün üstündeyse Evet"}
+{"tarih": "2026-10-02", "sorular": [
+{"soru": "ETH long hesap yüzdesi %70'in altında mı?", "nasil": "latest.json ETH global_long_pct < 70 ise Evet"},
+{"soru": "BTC 83.137'nin altına indi mi?", "nasil": "latest.json BTC low_24h veya price 83137 altındaysa Evet"},
+{"soru": "ABD istihdam raporu beklentinin (~90 bin) üstünde mi geldi?", "nasil": "2 Ekim 15:30 TSİ ABD Eylül nonfarm payrolls açıklanan rakam konsensüsün (~90 bin) üstündeyse Evet"}
 ]}
