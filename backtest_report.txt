@@ -1,0 +1,140 @@
+BACKTEST RAPORU — 2026-10-03T23:17:58+00:00
+Dönem: 2024-10-03 → 2026-09-29 (727 gün, 105 hafta), coinler: ADAUSDT, AVAXUSDT, BCHUSDT, BNBUSDT, BTCUSDT, ETHUSDT, LINKUSDT, LTCUSDT, SOLUSDT, SUIUSDT, XRPUSDT
+Kurgu: giriş 02, 06, 10, 14, 18, 22:00 UTC, TP +%2.0, ters bölge %10.0, liq %19.5, en fazla 96 saat, 5x, marj 50 USDT, ücret %0.05×2, funding dahil, eklemesiz.
+
+1) HER 4 SAATTE HER COİNDE AYNI İŞLEM AÇILSAYDI (filtre yok)
+               n  temiz%    TP%   liq%  -%10%  süre%  ort.PnL   toplam başabaş TP%
+long       47982    72.1   73.2    2.4   10.7   24.4    -0.61   -29521        77.7
+short      47982    73.8   74.7    2.7   10.1   22.6    -0.37   -17911        77.9
+  temiz% = TP'ye ters yönde %10 görmeden ulaşma; -%10% = en az bir kez %10 ters gitme;
+  süre% = 96 saatte ne TP ne liq; başabaş TP% = gerçekleşen ort. kazanç/kayıpla sıfır kâr için gereken TP oranı.
+
+2) COİN BAZINDA (long | short)
+            temiz% L  liq% L   PnL L  temiz% S  liq% S   PnL S
+ADAUSDT         74.4     3.4   -1.39      80.0     4.5   -0.44
+AVAXUSDT        75.0     3.0   -0.94      79.8     3.7   -0.19
+BCHUSDT         73.8     2.1   -0.42      75.7     2.4    0.06
+BNBUSDT         64.7     1.3   -0.03      61.4     0.5   -0.57
+BTCUSDT         61.8     0.3   -0.14      60.0     0.4   -0.42
+ETHUSDT         73.7     3.1   -0.65      70.6     1.3   -0.58
+LINKUSDT        78.1     2.5   -0.17      77.2     3.4   -0.69
+LTCUSDT         72.0     1.9   -0.07      73.8     2.5   -0.07
+SOLUSDT         75.6     2.7   -0.61      75.8     1.7   -0.45
+SUIUSDT         75.9     3.9   -1.26      81.9     5.3   -0.21
+XRPUSDT         68.5     2.7   -1.09      75.5     3.8   -0.54
+
+3) DOĞRULANMIŞ KOŞULLAR (0 / 76 test; ölçüt: işlem başı PnL farkı, %99.934 blok-bootstrap aralığı + iki yarıda aynı yön)
+  YOK. Test edilen hiçbir koşul işlem başı sonucu istatistiksel olarak anlamlı ve dönemin
+  iki yarısında tutarlı biçimde değiştirmedi. Brifing bu durumda kanıt iddia etmemeli.
+
+3b) ZAYIF İŞARETLER (3; %95 aralık sıfırı içermiyor + iki yarıda aynı yön, çoklu test düzeltmesi yok — 76 testte tesadüfen birkaç tane beklenir; kanıt DEĞİLDİR)
+  [long] açık pozisyon 24 saatte ≤ -%10 (oi_down_10): PnL +0.59 vs -0.66 → +1.25 [+0.03, +2.49], yarılar +1.07/+1.10; liq %2.1 vs %2.5, n=1868
+  [long] long hesap oranı ≥ %70 (long_crowd_70): PnL -1.14 vs -0.22 → -0.92 [-1.71, -0.18], yarılar -1.21/-1.05; liq %3.6 vs %1.5, n=20665
+  [long] brifingteki 🟢 filtresi (filter_green): PnL -0.04 vs -0.86 → +0.82 [+0.06, +1.63], yarılar +0.96/+1.06; liq %1.0 vs %3.0, n=14277
+
+4) TÜM KOŞULLAR (doğrulanmamışlar dahil; sadece bilgi, brifingte kanıt olarak kullanılmaz)
+koşul               yön       n   temiz% D/Y   liq% D/Y       PnL D/Y PnL fark          aralık      yarılar ok
+trend_up_1d         long  20816   72.6/71.8    1.8/3.0   -0.31/-0.85     +0.54    [-1.93,3.04]   -0.07/0.37   
+above_ema200_1d     long  20145   73.4/71.2    2.9/2.1   -0.55/-0.66     +0.11    [-2.87,2.74]  -0.86/-0.53   
+trend_up_4h         long  22625   71.5/72.7    1.5/3.3   -0.36/-0.84     +0.48    [-1.96,2.99]   -0.27/1.00   
+ret7d_pos           long  23212   72.2/72.1    1.5/3.3   -0.27/-0.94     +0.67    [-1.38,2.95]    0.26/0.94   
+drop_5pct_24h       long   3519   77.0/71.8    4.3/2.3   -0.65/-0.61     -0.04    [-3.13,2.79]   -0.27/0.02   
+pump_5pct_24h       long   4043   79.4/71.5    2.0/2.5   -0.22/-0.65     +0.44    [-1.65,2.44]   0.43/-0.05   
+wide_range_24h      long   6194   81.1/70.8    3.1/2.3    0.31/-0.75     +1.06    [-1.02,2.97]    1.01/0.44   
+near_day_low        long  11387   73.5/71.7    3.0/2.3   -0.42/-0.67     +0.25    [-1.74,1.79]   -0.72/1.23   
+near_day_high       long  12023   72.3/72.1    2.2/2.5   -0.74/-0.57     -0.16    [-1.40,1.17]   0.46/-0.99   
+high_vol            long  30740   76.5/64.3    3.0/1.4   -0.63/-0.58     -0.05    [-1.89,1.92]   -0.74/0.04   
+funding_high        long  13492   72.8/71.9    2.1/2.6   -0.47/-0.67     +0.21    [-1.70,1.99]   -0.20/0.15   
+funding_low         long   4874   73.8/72.0    2.5/2.4   -0.47/-0.63     +0.17    [-1.55,1.65]   0.38/-0.10   
+funding_negative    long  12918   73.8/71.5    2.5/2.4   -0.45/-0.68     +0.23    [-1.40,1.86]    0.46/0.43   
+oi_up_10            long   2979   77.3/71.8    1.9/2.5   -0.34/-0.63     +0.29    [-1.82,2.32]   0.36/-0.29   
+oi_down_10          long   1868   78.0/71.9    2.1/2.5    0.59/-0.66     +1.25    [-0.99,3.49]    1.07/1.10   
+long_crowd_70       long  20665   72.9/71.6    3.6/1.5   -1.14/-0.22     -0.92    [-2.51,0.34]  -1.21/-1.05   
+long_pctl_high      long   7422   73.3/71.9    2.3/2.5   -0.47/-0.64     +0.17    [-1.68,1.74]   0.69/-0.52   
+long_pctl_low       long   6626   72.3/72.1    1.4/2.6   -0.14/-0.69     +0.55    [-0.94,2.13]   -0.03/1.15   
+top_pctl_high       long   9067   70.8/72.5    1.6/2.6   -0.54/-0.63     +0.10    [-1.44,1.72]   0.57/-0.54   
+top_pctl_low        long   7098   73.1/72.0    3.5/2.3   -1.15/-0.52     -0.62    [-2.29,0.89]  -0.16/-0.79   
+perp_sellers        long  18044   72.6/71.9    2.9/2.1   -0.78/-0.52     -0.26    [-2.15,1.09]  -0.14/-0.48   
+perp_buyers         long   3622   68.8/72.4    1.5/2.5   -0.51/-0.62     +0.11    [-1.49,1.65]    0.81/0.10   
+spot_leads          long  25707   72.9/71.3    2.6/2.3   -0.58/-0.65     +0.07    [-0.76,0.87]   0.08/-0.07   
+shorts_building     long    467   72.4/72.1    2.4/2.4   -0.76/-0.61     -0.15    [-2.83,2.09]   -0.31/0.12   
+crowded_long_rally  long   4314   76.7/71.7    1.7/2.5   -0.30/-0.65     +0.34    [-1.60,2.29]    0.17/0.09   
+long_flush          long   4360   77.3/71.6    3.0/2.4   -0.01/-0.68     +0.66    [-1.36,2.45]    0.38/0.76   
+btc_trend_up        long  24585   72.4/71.9    1.9/3.0   -0.26/-0.99     +0.72    [-2.46,3.98]   0.57/-0.01   
+filter_green        long  14277   67.7/74.0    1.0/3.0   -0.04/-0.86     +0.82    [-0.48,2.17]    0.96/1.06   
+filter_red          long   8090   79.4/70.7    3.3/2.3   -0.14/-0.71     +0.57    [-1.13,2.53]    0.57/0.01   
+trend_conflict      long  11435   72.2/72.1    1.4/2.8   -0.13/-0.77     +0.63    [-1.29,2.71]   -0.41/1.67   
+squeeze             long   7512   68.5/72.8    1.8/2.6   -0.57/-0.62     +0.06    [-2.37,2.31]   -2.41/2.35   
+premium_high        long   1266   73.9/72.1    1.5/2.5   -0.04/-0.63     +0.59    [-1.18,2.18]    0.84/0.05   
+up_aligned          long  11545   74.0/71.6    2.3/2.5   -0.26/-0.73     +0.47    [-2.19,3.04]   -0.21/0.42   
+up_healthy_oi       long   3913   72.0/72.2    1.8/2.5   -0.56/-0.62     +0.06    [-2.38,2.22]   -0.51/0.15   
+up_not_crowded      long   1006   66.7/72.2    1.1/2.5   -0.96/-0.61     -0.35    [-3.12,1.89]  -0.53/-0.80   
+up_btc_confirm      long    828   69.2/72.2    1.0/2.5   -0.38/-0.62     +0.24    [-2.89,2.95]   0.12/-0.45   
+down_aligned        long  20544   72.2/72.1    3.6/1.6   -1.04/-0.29     -0.75    [-3.62,1.62]   0.36/-1.25   
+down_shorts_buildinglong    313   71.9/72.1    2.6/2.4   -0.66/-0.61     -0.04    [-4.06,3.08]    0.34/0.19   
+trend_up_1d         short 20816   73.8/73.8    3.7/1.9   -0.76/-0.08     -0.68    [-2.99,1.42]   0.13/-0.96   
+above_ema200_1d     short 20145   74.9/73.0    2.9/2.6   -0.30/-0.43     +0.13    [-1.95,2.49]    1.34/0.22   
+trend_up_4h         short 22625   73.7/73.9    3.0/2.4   -0.32/-0.42     +0.10    [-1.91,1.94]   -0.01/0.42   
+ret7d_pos           short 23212   73.1/74.4    3.1/2.3   -0.49/-0.26     -0.23    [-1.98,1.36]   -0.38/0.04   
+drop_5pct_24h       short  3519   81.2/73.2    3.1/2.7    0.05/-0.41     +0.46    [-1.77,2.59]    0.34/0.81   
+pump_5pct_24h       short  4043   79.8/73.2    5.9/2.4   -0.98/-0.32     -0.66    [-3.15,1.72]  -0.06/-1.21   
+wide_range_24h      short  6194   81.9/72.6    5.5/2.3   -0.47/-0.36     -0.11    [-1.82,1.64]   -0.15/0.58   
+near_day_low        short 11387   73.7/73.8    2.2/2.9   -0.22/-0.42     +0.20    [-1.07,1.60]    0.33/0.03   
+near_day_high       short 12023   73.3/74.0    3.4/2.5   -0.86/-0.21     -0.65    [-2.36,0.68]  -0.53/-0.67   
+high_vol            short 30740   79.4/63.9    3.0/2.1    0.03/-1.09     +1.12    [-0.92,4.40]    1.15/1.54   
+funding_high        short 13492   75.3/73.2    3.5/2.4   -0.55/-0.30     -0.25    [-2.65,1.60]   0.25/-0.43   
+funding_low         short  4874   75.2/73.6    2.4/2.7    0.03/-0.42     +0.45    [-1.14,1.88]    0.24/0.71   
+funding_negative    short 12918   74.8/73.4    2.2/2.9   -0.13/-0.46     +0.34    [-1.07,1.80]    0.06/0.25   
+oi_up_10            short  2979   79.5/73.4    5.1/2.5   -0.72/-0.35     -0.37    [-2.30,1.48]  -0.12/-0.38   
+oi_down_10          short  1868   79.0/73.6    3.8/2.6   -0.03/-0.39     +0.36    [-1.71,2.63]    0.60/0.35   
+long_crowd_70       short 20665   76.5/71.8    3.0/2.5   -0.19/-0.51     +0.32    [-0.88,1.69]    0.39/0.60   
+long_pctl_high      short  7422   75.2/73.5    2.2/2.8    0.08/-0.46     +0.53    [-0.72,1.97]    0.95/0.17   
+long_pctl_low       short  6626   72.2/74.0    2.9/2.7   -0.63/-0.33     -0.30    [-1.79,1.04]   -0.82/0.10   
+top_pctl_high       short  9067   74.7/73.6    4.1/2.4   -0.56/-0.33     -0.23    [-2.08,1.57]  -0.26/-0.11   
+top_pctl_low        short  7098   75.2/73.5    2.2/2.8   -0.16/-0.41     +0.25    [-1.54,1.87]    0.11/0.19   
+perp_sellers        short 18044   75.1/73.0    2.9/2.6   -0.25/-0.45     +0.20    [-0.99,1.30]    0.15/0.33   
+perp_buyers         short  3622   69.5/74.1    1.9/2.8   -0.57/-0.36     -0.21    [-2.03,1.31]  -0.83/-0.19   
+spot_leads          short 25707   74.6/72.8    2.6/2.9   -0.32/-0.44     +0.12    [-0.56,0.91]   0.37/-0.02   
+shorts_building     short   467   81.4/73.7    2.8/2.7    0.50/-0.38     +0.88    [-2.28,3.18]    1.04/0.63   
+crowded_long_rally  short  4314   78.3/73.3    5.2/2.5   -1.10/-0.30     -0.80    [-3.26,1.40]  -0.46/-0.92   
+long_flush          short  4360   78.5/73.3    3.0/2.7   -0.08/-0.40     +0.32    [-1.45,2.33]    0.40/0.48   
+btc_trend_up        short 24585   73.3/74.3    3.8/1.6   -0.90/0.18      -1.07    [-4.08,1.92]  -0.38/-1.14   
+filter_green        short 14277   65.8/77.2    1.6/3.1   -0.75/-0.21     -0.54    [-2.38,0.93]  -0.68/-0.70   
+filter_red          short  8090   81.7/72.2    4.7/2.3   -0.17/-0.42     +0.24    [-1.23,1.72]    0.30/0.66   
+trend_conflict      short 11435   70.5/74.8    2.5/2.8   -0.89/-0.21     -0.67    [-2.49,1.12]  -0.93/-0.44   
+squeeze             short  7512   67.0/75.1    3.5/2.5   -1.66/-0.14     -1.52    [-5.07,1.55]   0.14/-3.09   
+premium_high        short  1266   74.1/73.8    3.4/2.7   -0.98/-0.36     -0.62    [-2.99,1.69]  -0.38/-0.75   
+up_aligned          short 11545   75.5/73.3    3.5/2.4   -0.28/-0.40     +0.12    [-2.04,2.04]    0.68/0.33   
+up_healthy_oi       short  3913   75.2/73.7    3.4/2.6   -0.38/-0.37     -0.01    [-2.12,1.79]    0.22/0.64   
+up_not_crowded      short  1006   69.0/73.9    2.3/2.7   -0.83/-0.36     -0.46    [-3.13,1.98]   -0.44/0.19   
+up_btc_confirm      short   828   66.2/73.9    2.4/2.7   -1.32/-0.36     -0.96    [-4.17,1.67]  -0.95/-0.16   
+down_aligned        short 20544   74.8/73.1    2.1/3.2   -0.06/-0.60     +0.54    [-1.21,2.55]    0.31/0.34   
+down_shorts_buildingshort   313   79.9/73.8    1.9/2.7    0.30/-0.38     +0.68    [-3.83,3.85]    0.53/0.42   
+
+5) STOP-LOSS KARŞILAŞTIRMASI (aynı işlemler; fark = stop'lu PnL - stop'suz PnL, %95 haftalık bootstrap)
+   Stop piyasa emriyle, %0.05 kayma payıyla kapanır. 5x'te fiyat %X stop = %5X ROE kaybı.
+  [long] tüm işlemler
+      SL    TP%    SL%   liq%  ort.PnL   toplam  en kötü    fark            aralık        yarılar
+     yok   73.2    0.0    2.4    -0.61   -29521   -50.00
+      %2   48.3   50.7    0.0    -0.44   -21325    -5.78   +0.17     [-0.59,+0.96]    -0.36/+0.70
+      %3   57.8   39.8    0.0    -0.44   -20960    -8.42   +0.18     [-0.55,+0.90]    -0.30/+0.65
+      %5   66.6   26.4    0.0    -0.49   -23379   -13.55   +0.13     [-0.41,+0.74]    -0.30/+0.56
+      %8   71.2   14.8    0.0    -0.47   -22314   -21.21   +0.15     [-0.27,+0.60]    -0.16/+0.46
+     %10   72.1   10.7    0.0    -0.55   -26396   -26.21   +0.07     [-0.23,+0.43]    -0.18/+0.31
+  [short] tüm işlemler
+      SL    TP%    SL%   liq%  ort.PnL   toplam  en kötü    fark            aralık        yarılar
+     yok   74.7    0.0    2.7    -0.37   -17911   -50.00
+      %2   50.5   48.6    0.0    -0.21    -9874    -6.33   +0.17     [-0.60,+1.04]    +0.57/-0.23
+      %3   59.2   38.4    0.0    -0.23   -10938    -8.52   +0.14     [-0.51,+0.99]    +0.46/-0.17
+      %5   68.2   25.2    0.0    -0.19    -9292   -13.52   +0.18     [-0.35,+0.81]    +0.40/-0.04
+      %8   72.7   14.6    0.0    -0.23   -10812   -21.27   +0.15     [-0.22,+0.56]    +0.27/+0.03
+     %10   73.8   10.1    0.0    -0.20    -9580   -26.27   +0.17     [-0.08,+0.49]    +0.29/+0.06
+  ✔ = stop'suza göre fark %95 aralıkta sıfırdan farklı ve iki yarıda aynı yönde.
+  Not: sıkı stoplarda (%2-3) aynı mumda TP ve stop sık görülür; stop önce sayıldığı için sonuç kötümserdir.
+
+NOTLAR
+- Mum içi sıra bilinmediği için aynı saatte TP ve ters seviye birlikte görülürse ters seviye sayıldı (kötümser).
+- Sonuçlar bu dönemin piyasa rejimine bağlıdır; geçmiş başarı geleceği garanti etmez.
+- 11 coin aynı gün büyük ölçüde birlikte hareket eder; etkin örneklem işlem sayısından küçüktür (bootstrap bunu hafta bazında hesaba katar).
+- Liq'e yakın ekleme simüle edilmedi; ekleme, liq olan işlemlerde kaybı ~2 katına çıkarır.
+- PnL'i nadir ama büyük liq kayıpları (-50 USDT) belirler; birkaç liq farkı sonucu değiştirebilir, bu yüzden eşik sıkıdır.
