@@ -1,5 +1,5 @@
-{"tarih": "2026-10-03", "sorular": [
+{"tarih": "2026-10-04", "sorular": [
 {"soru": "ETH long hesap yüzdesi %70'in altına indi mi?", "nasil": "latest.json ETH global_long_pct < 70 ise Evet"},
-{"soru": "BTC dünün dibi olan 83.842'nin altına indi mi?", "nasil": "latest.json BTC low_24h veya price 83842 altındaysa Evet"},
-{"soru": "SUI 24s aralığı %10'un altına düştü mü?", "nasil": "latest.json SUI range_24h_pct < 10 ise Evet"}
+{"soru": "AVAX long hesap yüzdesi %70'in altına indi mi?", "nasil": "latest.json AVAX global_long_pct < 70 ise Evet"},
+{"soru": "BTC dünün dibi olan 84.410'un altına indi mi?", "nasil": "latest.json BTC low_24h veya price 84410 altındaysa Evet"}
 ]}
