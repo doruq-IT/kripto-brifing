@@ -1,5 +1,5 @@
-{"tarih": "2026-10-05", "sorular": [
-{"soru": "ADA risk grubu 🔴'dan çıktı mı?", "nasil": "latest.json ADA range_24h_pct < 10 VE |oi_change_24h_pct| < 15 VE change_24h_pct > -5 ise Evet"},
+{"tarih": "2026-10-06", "sorular": [
 {"soru": "ETH long hesap yüzdesi %70'in altına indi mi?", "nasil": "latest.json ETH global_long_pct < 70 ise Evet"},
-{"soru": "BTC dünün dibi olan 84.677'nin altına indi mi?", "nasil": "latest.json BTC low_24h veya price 84677 altındaysa Evet"}
+{"soru": "ADA dünün tepesi 0,2768'in üstüne çıktı mı?", "nasil": "latest.json ADA high_24h veya price 0.2768 üstündeyse Evet"},
+{"soru": "AVAX açık pozisyon 24s değişimi +%10'u aştı mı?", "nasil": "latest.json AVAX oi_change_24h_pct > 10 ise Evet"}
 ]}
