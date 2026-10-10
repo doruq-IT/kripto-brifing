@@ -1,5 +1,5 @@
-{"tarih": "2026-10-09", "sorular": [
-{"soru": "BTC dünün dibi 80.345'in altına indi mi?", "nasil": "latest.json BTC low_24h veya price 80344.8 altındaysa Evet"},
-{"soru": "BCH'nin 24s OI değişimi -%10'dan yukarı çıktı mı?", "nasil": "latest.json BCH oi_change_24h_pct > -10 ise Evet"},
-{"soru": "ADA 🔴 gruptan çıktı mı?", "nasil": "latest.json ADA: range_24h_pct<10 VE |oi_change_24h_pct|<15 VE change_24h_pct>-5 ise Evet"}
+{"tarih": "2026-10-10", "sorular": [
+{"soru": "BTC dünün tepesi 83.500'ün üstüne çıktı mı?", "nasil": "latest.json BTC high_24h veya price 83499.9 üstündeyse Evet"},
+{"soru": "ETH long hesap yüzdesi %70'in altına indi mi?", "nasil": "latest.json ETH global_long_pct < 70 ise Evet"},
+{"soru": "SUI 24s OI değişimi ±%10 eşiğini aştı mı?", "nasil": "latest.json SUI |oi_change_24h_pct| >= 10 ise Evet"}
 ]}
