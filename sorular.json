@@ -1,5 +1,5 @@
-{"tarih": "2026-10-10", "sorular": [
-{"soru": "BTC dünün tepesi 83.500'ün üstüne çıktı mı?", "nasil": "latest.json BTC high_24h veya price 83499.9 üstündeyse Evet"},
-{"soru": "ETH long hesap yüzdesi %70'in altına indi mi?", "nasil": "latest.json ETH global_long_pct < 70 ise Evet"},
-{"soru": "SUI 24s OI değişimi ±%10 eşiğini aştı mı?", "nasil": "latest.json SUI |oi_change_24h_pct| >= 10 ise Evet"}
+{"tarih": "2026-10-11", "sorular": [
+{"soru": "BTC dünün tepesi 83.137 üstüne çıktı mı?", "nasil": "latest.json BTC high_24h veya price 83137.2 üstündeyse Evet"},
+{"soru": "ETH long hesap yüzdesi %70 altına indi mi?", "nasil": "latest.json ETH global_long_pct < 70 ise Evet"},
+{"soru": "SOL long hesap yüzdesi %70 altına indi mi?", "nasil": "latest.json SOL global_long_pct < 70 ise Evet"}
 ]}
