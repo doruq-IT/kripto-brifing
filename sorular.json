@@ -1,5 +1,5 @@
-{"tarih": "2026-10-12", "sorular": [
-{"soru": "BTC 24s dibi 82.751 altına indi mi?", "nasil": "latest.json BTC low_24h < 82751.1 ise Evet"},
-{"soru": "BTC 24s tepesi 86.976 üstüne çıktı mı?", "nasil": "latest.json BTC high_24h > 86976.1 ise Evet"},
-{"soru": "AVAX 24s OI değişimi +%10 veya üstüne çıktı mı?", "nasil": "latest.json AVAX oi_change_24h_pct >= 10 ise Evet"}
+{"tarih": "2026-10-13", "sorular": [
+{"soru": "BTC 24s dibi 80.985 altına indi mi?", "nasil": "latest.json BTC low_24h < 80985 ise Evet"},
+{"soru": "SOL long hesap yüzdesi %70 altına indi mi?", "nasil": "latest.json SOL global_long_pct < 70 ise Evet"},
+{"soru": "ADA 24s OI değişimi ±%10 eşiğini aştı mı?", "nasil": "latest.json ADA |oi_change_24h_pct| >= 10 ise Evet"}
 ]}
