@@ -1,5 +1,5 @@
-{"tarih": "2026-10-13", "sorular": [
-{"soru": "BTC 24s dibi 80.985 altına indi mi?", "nasil": "latest.json BTC low_24h < 80985 ise Evet"},
-{"soru": "SOL long hesap yüzdesi %70 altına indi mi?", "nasil": "latest.json SOL global_long_pct < 70 ise Evet"},
-{"soru": "ADA 24s OI değişimi ±%10 eşiğini aştı mı?", "nasil": "latest.json ADA |oi_change_24h_pct| >= 10 ise Evet"}
+{"tarih": "2026-10-14", "sorular": [
+{"soru": "ETH long hesap yüzdesi %70 altına indi mi?", "nasil": "latest.json ETH global_long_pct < 70 ise Evet"},
+{"soru": "BTC 24s tepesi 85.559 (7 günün tepesi) üstüne çıktı mı?", "nasil": "latest.json BTC high_24h > 85559 ise Evet"},
+{"soru": "ABD eylül CPI yıllık verisi +%3,6 beklentisinin üstünde mi geldi?", "nasil": "BLS eylül CPI yıllık değeri, 14.10.2026 15:30 TSİ'de açıklandı; +%3,6'dan yüksekse Evet"}
 ]}
