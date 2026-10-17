@@ -1,5 +1,5 @@
-{"tarih": "2026-10-16", "sorular": [
+{"tarih": "2026-10-17", "sorular": [
 {"soru": "ETH long hesap yüzdesi %70 altına indi mi?", "nasil": "latest.json ETH global_long_pct < 70 ise Evet"},
-{"soru": "BTC 24s dibi 79.732 (dünün dibi) altına indi mi?", "nasil": "latest.json BTC low_24h < 79732 ise Evet"},
-{"soru": "XRP funding yüzdeliği (30 gün) 90 altına indi mi?", "nasil": "latest.json XRP funding_pctl_30d < 90 ise Evet"}
+{"soru": "BTC 24s dibi 79.732 (7 günün dibi) altına indi mi?", "nasil": "latest.json BTC low_24h < 79732 ise Evet"},
+{"soru": "XRP long hesap yüzdesi %70 altına indi mi?", "nasil": "latest.json XRP global_long_pct < 70 ise Evet"}
 ]}
